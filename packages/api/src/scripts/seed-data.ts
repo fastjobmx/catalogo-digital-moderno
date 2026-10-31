@@ -45,7 +45,7 @@ type ManifestEntry = {
   blurDataURL: string
 }
 
-export const SELLER_PASSWORD = "Test1234!"
+export const SELLER_PASSWORD = process.env.SEED_SELLER_PASSWORD || "Test1234!"
 
 export const CUSTOMERS = [
   { name: "Cliente Prueba 1", phone: "+573101112233", email: "cliente1@test.com" },
