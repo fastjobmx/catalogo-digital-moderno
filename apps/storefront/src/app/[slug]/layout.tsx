@@ -1,4 +1,4 @@
-import type { CSSProperties, ReactNode } from "react"
+import type { ReactNode } from "react"
 import type { Metadata } from "next"
 import { notFound } from "next/navigation"
 import { CartDrawer } from "@/components/cart-drawer"
@@ -33,15 +33,16 @@ export default async function VendorLayout({ params, children }: Props) {
   }
 
   const { vendor, categories } = catalog
-  const theme = {
-    "--brand-primary": vendor.primary_color,
-    "--brand-on-primary": readableOn(vendor.primary_color),
-    "--brand-secondary": vendor.secondary_color,
-    "--brand-on-secondary": readableOn(vendor.secondary_color),
-  } as CSSProperties
+  // En :root y no en un div: carrito y filtros se renderizan en <body>, fuera del layout.
+  const theme = `:root{--brand-primary:${vendor.primary_color};--brand-on-primary:${readableOn(
+    vendor.primary_color
+  )};--brand-secondary:${vendor.secondary_color};--brand-on-secondary:${readableOn(
+    vendor.secondary_color
+  )}}`
 
   return (
-    <div style={theme} className="flex min-h-dvh flex-col">
+    <div className="flex min-h-dvh flex-col">
+      <style dangerouslySetInnerHTML={{ __html: theme }} />
       <CartProvider slug={vendor.slug}>
         <Header vendor={vendor} categories={categories} />
         <div className="flex-1">{children}</div>

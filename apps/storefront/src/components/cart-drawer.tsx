@@ -8,13 +8,13 @@ import { formatMoney } from "@/lib/utils"
 import { useCart } from "./cart-context"
 import { EmptyState } from "./empty-state"
 import { QuantityStepper } from "./quantity-stepper"
-import { Button } from "./ui/button"
+import { Button, buttonVariants } from "./ui/button"
 import { Sheet } from "./ui/sheet"
 
 const inputClass =
   "min-h-11 w-full rounded-xl border border-line bg-surface px-3 outline-brand"
 
-type Confirmation = { displayId: number; total: number }
+type Confirmation = { displayId: number; total: number; whatsappUrl: string }
 
 function PaymentList({ vendor }: { vendor: Vendor }) {
   if (!vendor.payment_methods.length) {
@@ -48,6 +48,11 @@ export function CartDrawer({ vendor }: { vendor: Vendor }) {
     const form = new FormData(event.currentTarget)
     idempotencyKey.current ??= crypto.randomUUID()
     setError(null)
+    // Debe abrirse aquí, dentro del clic: después de la respuesta el navegador la bloquearía.
+    const whatsapp = window.open("about:blank", "_blank")
+    if (whatsapp) {
+      whatsapp.opener = null
+    }
 
     startTransition(async () => {
       const result = await submitOrder({
@@ -60,12 +65,20 @@ export function CartDrawer({ vendor }: { vendor: Vendor }) {
         items: lines.map(({ offer_id, quantity, size }) => ({ offer_id, quantity, size })),
       })
       if (!result.ok) {
+        whatsapp?.close()
         setError(result.message)
         return
       }
       idempotencyKey.current = null
-      setConfirmation({ displayId: result.displayId, total: result.total })
+      setConfirmation({
+        displayId: result.displayId,
+        total: result.total,
+        whatsappUrl: result.whatsappUrl,
+      })
       clear()
+      if (whatsapp) {
+        whatsapp.location.href = result.whatsappUrl
+      }
     })
   }
 
@@ -102,11 +115,24 @@ export function CartDrawer({ vendor }: { vendor: Vendor }) {
               Pedido #{confirmation.displayId} por {money(confirmation.total)}
             </h2>
             <p className="text-sm text-muted">
-              Te enviamos el resumen por WhatsApp. {vendor.name} se contactará contigo
-              para coordinar el pago y la entrega.
+              Abrimos el WhatsApp de {vendor.name} con tu pedido. Envía el mensaje para
+              que lo reciba y coordinen el pago y la entrega.
             </p>
+            <a
+              href={confirmation.whatsappUrl}
+              target="_blank"
+              rel="noreferrer"
+              className={`${buttonVariants({ variant: "whatsapp" })} w-full`}
+            >
+              <MessageCircle className="size-5" aria-hidden />
+              Abrir WhatsApp de nuevo
+            </a>
             <PaymentList vendor={vendor} />
-            <Button className="w-full" onClick={() => onOpenChange(false)}>
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={() => onOpenChange(false)}
+            >
               Seguir viendo el catálogo
             </Button>
           </div>

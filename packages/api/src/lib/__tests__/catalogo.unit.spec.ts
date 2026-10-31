@@ -1,6 +1,10 @@
 import { parsePrice, validateRows } from "../import-rows"
 import { normalizePhone } from "../phone"
-import { buildCustomerMessage, buildVendorMessage } from "../whatsapp/messages"
+import {
+  buildCustomerMessage,
+  buildOrderWhatsappUrl,
+  buildVendorMessage,
+} from "../whatsapp/messages"
 
 describe("parsePrice", () => {
   it.each([
@@ -114,6 +118,22 @@ describe("mensajes de WhatsApp", () => {
     expect(params[2]).toBe("Nequi: 300, Efectivo")
     expect(body).toContain("Tu pedido #7")
     expect(body).toContain("Tenis Bogotá se contactará contigo")
+  })
+
+  it("arma el enlace al WhatsApp del comercio con todo el pedido", () => {
+    const url = buildOrderWhatsappUrl(
+      { ...order, items: [{ ...order.items[0], line_total: 379800 }] },
+      "Tenis Bogotá",
+      "+57 300 111 2233",
+      [{ name: "Nequi", detail: "300" }]
+    )
+    expect(url.startsWith("https://wa.me/573001112233?text=")).toBe(true)
+    const text = decodeURIComponent(url.split("text=")[1])
+    expect(text).toContain("Hola Tenis Bogotá")
+    expect(text).toContain("*Pedido #7*")
+    expect(text).toContain("2x Runner (40) [T1]")
+    expect(text).toContain("Celular: +573001234567")
+    expect(text).toContain("Nequi: 300")
   })
 
   it("nunca envía una variable vacía", () => {

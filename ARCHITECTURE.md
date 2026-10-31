@@ -11,7 +11,7 @@ apps/
     src/components/     Carrito, tarjeta de producto, filtros y ui/ (estilo shadcn)
     src/lib/api.ts      Cliente del backend (solo servidor)
   vendor/               Panel del proveedor (Mercur)
-    src/routes/         mi-marca, importar, pedidos-whatsapp
+    src/routes/         orders, resumen, mis-productos, mi-marca, importar
     src/lib/            Cliente y Web Worker que lee CSV/Excel
   admin/                Panel de administración (Mercur)
     src/routes/         catalogo-global
@@ -32,6 +32,9 @@ seed/catalog.json       Comercios y productos de prueba
 ## Flujo de un pedido
 
 ```
+El cliente toca "Enviar pedido por WhatsApp": se guarda el pedido y se abre wa.me del comercio
+con el pedido completo. El cliente envía ese mensaje desde su propio WhatsApp.
+
 Celular -> Server Action de Next -> POST /store/catalogs/:slug/orders
                                      1. Recalcula precios y valida stock y tallas
                                      2. Guarda el pedido: pendiente_confirmacion
@@ -112,6 +115,13 @@ Las URLs de las fotos se guardan absolutas (`SEED_ASSET_BASE_URL`) porque el imp
 ### Variantes
 Los ejes viven en `product.metadata.options`, sin crear variantes de Medusa, por la misma razón que las tallas: hay un solo stock por referencia. `order_request_item.size` guarda la combinación elegida, como `M / Negro`, y `assertValidVariant` la valida en el servidor.
 
+### Pedido por WhatsApp del comercio
+El pedido siempre termina en el WhatsApp del comercio. `POST .../orders` devuelve `whatsapp_url`, un enlace `wa.me` con todo el pedido, y el carrito lo abre en una ventana nueva. La ventana se abre antes de llamar al backend, dentro del clic, porque los navegadores bloquean las que se abren después de una respuesta; si aun así se bloquea, la confirmación trae el botón para abrirla.
+
+`wa.me` deja el mensaje escrito, pero el cliente debe tocar enviar: ninguna web puede enviarlo por él. Por eso el pedido se guarda antes y aparece en la bandeja del proveedor aunque el cliente no lo envíe.
+
+La bandeja propia ocupa la ruta `/orders` del panel, reemplazando la de Mercur, que lista órdenes de checkout que aquí no existen.
+
 ### Sandbox de WhatsApp
 `getWhatsAppProvider` elige la implementación con `WHATSAPP_PROVIDER`: `mock`, `cloud` o `twilio`. `whatsapp_message` sigue siendo la cola y el estado de entrega con cualquier proveedor; `whatsapp_outbox` es solo el registro del mock.
 
@@ -154,4 +164,4 @@ Next.js 16 en lugar de 14: Mercur ya lo usa y 14 quedó sin soporte. `xlsx` se i
 - Las rutas de storefront nuevas son aditivas: `GET /store/catalogs/:slug/products/:sku`, `GET /vendor/dashboard` y `GET /vendor/catalog-products`.
 - Cambia `JWT_SECRET`, `COOKIE_SECRET` y las contraseñas de prueba.
 - Comisiones: la vista global aplica un porcentaje fijo sobre todos los pedidos no cancelados. Es un informe, no una liquidación.
-- Las pantallas propias están en español; el resto de los paneles de Mercur viene en inglés porque Mercur solo trae ese idioma en esta plantilla.
+- Las pantallas propias están en español. El resto de los paneles de Mercur sigue el idioma elegido en el panel.

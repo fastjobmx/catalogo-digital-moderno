@@ -27,7 +27,7 @@ const orderSchema = z.object({
 export type OrderInput = z.infer<typeof orderSchema>
 
 export type OrderResult =
-  | { ok: true; displayId: number; total: number }
+  | { ok: true; displayId: number; total: number; whatsappUrl: string }
   | { ok: false; message: string }
 
 export async function submitOrder(input: OrderInput): Promise<OrderResult> {
@@ -53,6 +53,7 @@ export async function submitOrder(input: OrderInput): Promise<OrderResult> {
       ok: true,
       displayId: payload.order.display_id,
       total: payload.order.total,
+      whatsappUrl: payload.whatsapp_url,
     }
   } catch {
     return { ok: false, message: "No pudimos enviar tu pedido. Intenta de nuevo." }

@@ -76,7 +76,7 @@ const SummaryPage = () => {
       <Container className="divide-y p-0">
         <div className="flex items-center justify-between px-6 py-4">
           <Heading level="h2">Últimos pedidos</Heading>
-          <Link to="/pedidos-whatsapp" className="text-ui-fg-interactive text-sm font-medium">
+          <Link to="/orders" className="text-ui-fg-interactive text-sm font-medium">
             Ver todos
           </Link>
         </div>

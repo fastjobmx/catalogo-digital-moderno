@@ -1,7 +1,5 @@
 import { useCallback, useEffect, useState } from "react"
 import { Badge, Button, Container, Heading, Select, Text, toast } from "@medusajs/ui"
-import { ChatBubbleLeftRight } from "@medusajs/icons"
-import type { RouteConfig } from "@mercurjs/dashboard-sdk"
 import { vendorFetch } from "../../lib/api"
 
 type Message = {
@@ -49,11 +47,6 @@ const money = (amount: number, code: string) =>
     maximumFractionDigits: 0,
   }).format(amount)
 
-export const config: RouteConfig = {
-  label: "Pedidos WhatsApp",
-  icon: ChatBubbleLeftRight,
-}
-
 const OrdersPage = () => {
   const [orders, setOrders] = useState<Order[] | null>(null)
   const [filter, setFilter] = useState("pendiente_confirmacion")
@@ -97,7 +90,7 @@ const OrdersPage = () => {
   return (
     <Container className="divide-y p-0">
       <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-4">
-        <Heading>Pedidos WhatsApp</Heading>
+        <Heading>Pedidos</Heading>
         <div className="w-48">
           <Select value={filter} onValueChange={setFilter}>
             <Select.Trigger aria-label="Filtrar por estado">
@@ -159,7 +152,7 @@ const OrdersPage = () => {
               <li key={item.id}>
                 <Text size="small">
                   {item.quantity} x {item.title}
-                  {item.size ? ` (talla ${item.size})` : ""} · {item.sku}
+                  {item.size ? ` (${item.size})` : ""} · {item.sku}
                 </Text>
               </li>
             ))}

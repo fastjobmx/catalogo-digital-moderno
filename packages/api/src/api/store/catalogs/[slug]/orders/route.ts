@@ -3,6 +3,9 @@ import { MedusaError } from "@medusajs/framework/utils"
 import { createOrderRequest, RateLimitError } from "../../../../../lib/orders"
 import { getPublicSeller } from "../../../../../lib/public-seller"
 import { parseOrThrow, z } from "../../../../../lib/validation"
+import { buildOrderWhatsappUrl } from "../../../../../lib/whatsapp/messages"
+import { CATALOGO_MODULE } from "../../../../../modules/catalogo"
+import type CatalogoModuleService from "../../../../../modules/catalogo/service"
 
 const bodySchema = z.object({
   idempotency_key: z.string().min(8).max(64),
@@ -44,7 +47,17 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       body
     )
     // 202: el pedido quedó guardado; los mensajes salen en segundo plano.
+    const catalogo = req.scope.resolve<CatalogoModuleService>(CATALOGO_MODULE)
+    const full = await catalogo.retrieveOrderRequest(order.id, {
+      relations: ["items"],
+    })
     res.status(202).json({
+      whatsapp_url: buildOrderWhatsappUrl(
+        full as any,
+        seller.name,
+        whatsapp_phone,
+        payment_methods
+      ),
       order: {
         id: order.id,
         display_id: order.display_id,

@@ -12,7 +12,7 @@ type Props = {
 
 export function QuantityStepper({ value, max, min = 1, label, onChange }: Props) {
   return (
-    <div className="flex items-center rounded-xl border border-line">
+    <div className="flex w-fit items-center rounded-xl border border-line">
       <button
         type="button"
         aria-label={`Quitar una unidad de ${label}`}

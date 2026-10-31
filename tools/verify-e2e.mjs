@@ -116,6 +116,44 @@ async function checkUrls(urls) {
   return broken
 }
 
+async function buyFromInterface(store) {
+  const { json } = await call("GET", `/store/catalogs/${SLUG}?limit=100`, store)
+  const product = json.products.find(
+    (p) => p.stock > 0 && !p.sku.startsWith("E2E-") && !p.sold_out_options.length
+  )
+  const browser = await chromium.launch({ channel: "chromium" })
+  try {
+    const context = await browser.newContext({ viewport: { width: 375, height: 812 } })
+    // No sale a internet: basta con ver a qué dirección intenta ir la ventana nueva.
+    await context.route("https://wa.me/**", (route) =>
+      route.fulfill({ contentType: "text/html", body: "wa.me" })
+    )
+    const page = await context.newPage()
+    await page.goto(`${STOREFRONT}/${SLUG}/p/${encodeURIComponent(product.sku)}`)
+    for (const option of product.options) {
+      await page.getByRole("button", { name: option.values[0], exact: true }).click()
+    }
+    await page.getByRole("button", { name: "Añadir al carrito" }).click()
+    await page.locator("[name=name]").fill(CUSTOMER.name)
+    await page.locator("[name=phone]").fill(CUSTOMER.phone)
+    const popup = page.waitForEvent("popup")
+    await page.getByRole("button", { name: "Enviar pedido por WhatsApp" }).click()
+    const whatsapp = await popup
+    await whatsapp.waitForURL(/wa\.me/, { timeout: 15_000 })
+    const url = decodeURIComponent(whatsapp.url())
+    assert(url.includes("wa.me/573001112233"), "No abrió el WhatsApp del comercio")
+    assert(url.includes(product.title), "El mensaje no trae el producto")
+    await page.getByText("Abrir WhatsApp de nuevo").waitFor({ timeout: 10_000 })
+    const primary = await page.evaluate(() =>
+      getComputedStyle(document.querySelector("[role=dialog]")).getPropertyValue("--brand-primary")
+    )
+    assert(primary.trim().toLowerCase() === "#111827", `Color en el carrito: ${primary}`)
+    return "ventana nueva a wa.me con el pedido"
+  } finally {
+    await browser.close()
+  }
+}
+
 async function captureScreenshots(store) {
   rmSync(SHOTS, { recursive: true, force: true })
   mkdirSync(SHOTS, { recursive: true })
@@ -164,6 +202,10 @@ async function captureScreenshots(store) {
   await panel.getByLabel("Password").fill(PASSWORD)
   await panel.getByRole("button", { name: "Log in" }).click()
   await panel.getByText("SneakerHub CO").first().click({ timeout: 20_000 })
+  // Tras entrar se aterriza en Pedidos: ahí deben estar los pedidos del catálogo.
+  await panel.getByText(CUSTOMER.name).first().waitFor({ timeout: 20_000 })
+  await panel.screenshot({ path: path.join(SHOTS, "panel-pedidos-desktop.png") })
+  shots.push({ file: "panel-pedidos-desktop.png", label: "Panel: pedidos" })
   await panel.getByText("Resumen", { exact: true }).first().click({ timeout: 20_000 })
   await panel.getByText("Últimos pedidos").waitFor({ timeout: 20_000 })
   await panel.screenshot({ path: path.join(SHOTS, "panel-dashboard-desktop.png") })
@@ -335,6 +377,12 @@ async function main() {
     order = created.json.order
     assert(order.total === total, `Total ${order.total}, se esperaba ${total}`)
     assert(order.status === "pendiente_confirmacion", `Estado ${order.status}`)
+    const link = decodeURIComponent(created.json.whatsapp_url ?? "")
+    assert(link.startsWith("https://wa.me/573001112233?text="), "Falta el enlace al comercio")
+    for (const product of picks) {
+      assert(link.includes(product.title), `El enlace no trae ${product.title}`)
+    }
+    assert(link.includes(CUSTOMER.name), "El enlace no trae los datos del cliente")
     return `pedido #${order.display_id}`
   })
 
@@ -391,6 +439,9 @@ async function main() {
   }
   await db.end()
 
+  await scenario("Compra en la interfaz abre el WhatsApp del comercio", () =>
+    buyFromInterface(store)
+  )
   await scenario("Capturas visuales", () => captureScreenshots(store))
 
   const passed = results.filter((result) => result.ok).length

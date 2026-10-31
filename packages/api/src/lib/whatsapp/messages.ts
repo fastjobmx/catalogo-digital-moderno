@@ -16,6 +16,7 @@ type OrderForMessage = {
     sku: string
     size?: string | null
     quantity: number
+    line_total?: unknown
   }[]
 }
 
@@ -79,6 +80,36 @@ export function buildVendorMessage(order: OrderForMessage) {
   ].join("\n")
 
   return { template: TEMPLATE_VENDOR, params, body }
+}
+
+/** Enlace wa.me al comercio: el cliente lo envía desde su WhatsApp con todo el pedido. */
+export function buildOrderWhatsappUrl(
+  order: OrderForMessage,
+  vendorName: string,
+  vendorPhone: string,
+  methods: PaymentMethod[]
+) {
+  const money = (amount: unknown) => formatMoney(amount, order.currency_code)
+  const text = [
+    `Hola ${vendorName}, quiero hacer este pedido:`,
+    "",
+    `*Pedido #${order.display_id}*`,
+    ...order.items.map((item) => {
+      const price = item.line_total === undefined ? "" : `: ${money(item.line_total)}`
+      return `• ${itemLabel(item)}${price}`
+    }),
+    "",
+    `*Total: ${money(order.total)}*`,
+    "",
+    `Nombre: ${order.customer_name}`,
+    `Celular: +${order.customer_phone}`,
+    `Dirección: ${order.customer_address || "No indicada"}`,
+    ...(order.notes ? [`Notas: ${order.notes}`] : []),
+    "",
+    `Medios de pago: ${paymentLabel(methods)}`,
+  ].join("\n")
+
+  return `https://wa.me/${vendorPhone.replace(/\D/g, "")}?text=${encodeURIComponent(text)}`
 }
 
 export function buildCustomerMessage(
