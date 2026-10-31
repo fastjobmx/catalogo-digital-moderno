@@ -1,3 +1,3 @@
 {
-  "installCommand": "npm install --no-package-lock"
+  "installCommand": "npm install --no-workspaces --no-package-lock"
 }
