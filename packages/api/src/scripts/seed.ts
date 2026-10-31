@@ -99,7 +99,8 @@ async function ensureMarketplaceBase(container: Container) {
     path.join(storefrontDir, ".env.local"),
     `MEDUSA_BACKEND_URL=http://localhost:9000\nMEDUSA_PUBLISHABLE_KEY=${key.token}\n`
   )
-  logger.info("Clave publicable escrita en apps/storefront/.env.local")
+  // Es la clave pública del storefront; en el hosting se copia desde este log.
+  logger.info(`Clave publicable: ${key.token}`)
 }
 
 async function ensureSeller(

@@ -13,6 +13,7 @@
     "test": "cd packages/api && npm run test:unit",
     "verify:e2e": "node tools/verify-e2e.mjs",
     "online": "node tools/online.mjs",
+    "start:production": "node tools/start-production.mjs",
     "verify:setup": "playwright install chromium",
     "lint": "turbo run lint",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",

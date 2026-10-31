@@ -48,7 +48,6 @@ yarn-error.log*
 *.tsbuildinfo
 .claude/
 
-apps/storefront/public/seed-images/
 screenshots/
-apps/storefront/public/brand/
+apps/storefront/public/brand/*/placeholders/
 .next-*/
