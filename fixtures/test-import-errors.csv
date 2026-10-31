@@ -1,0 +1,4 @@
+SKU,Nombre,Descripción,Precio,Stock,Imagen URL,Categoría,Marca,Tallas
+E2E-0101,Reebok Nano X4 Negro,Fila válida.,"249.900",4,https://picsum.photos/seed/E2E-0101/600/600,Deportivos,Reebok,40|41
+E2E-0102,Converse Run Star Motion,Fila con precio negativo.,-50000,4,https://picsum.photos/seed/E2E-0102/600/600,Urbanos,Converse,40|41
+E2E-0103,Jordan Spizike Low Gris,Fila válida.,"279.900",3,https://picsum.photos/seed/E2E-0103/600/600,Urbanos,Jordan,41|42

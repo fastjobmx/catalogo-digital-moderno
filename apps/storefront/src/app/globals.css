@@ -1,0 +1,50 @@
+@import "tailwindcss";
+
+@theme inline {
+  --color-brand: var(--brand);
+  --color-brand-foreground: var(--brand-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-surface: #ffffff;
+  --color-canvas: #f6f6f4;
+  --color-ink: #17181a;
+  --color-muted: #63666b;
+  --color-line: #e4e4e0;
+  --color-danger: #b42318;
+}
+
+:root {
+  --brand: #111827;
+  --brand-foreground: #ffffff;
+  --accent: #f59e0b;
+  --accent-foreground: #111827;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  font-family: var(--font-sans), system-ui, sans-serif;
+}
+
+/* Inputs a 16px: iOS Safari no hace zoom al enfocarlos. */
+input,
+textarea,
+select {
+  font-size: 16px;
+}
+
+.no-scrollbar {
+  scrollbar-width: none;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}

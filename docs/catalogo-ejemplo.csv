@@ -1,0 +1,4 @@
+SKU,Nombre,Descripción,Precio,Stock,Imagen URL,Categoría,Tallas
+DEMO-001,Runner Azul,Tenis livianos para diario,"$ 179.900",15,https://placehold.co/600x600/png?text=Runner+Azul,Running,38|39|40|41
+DEMO-002,Classic Blanco,Cuero sintético,"159.900",8,https://placehold.co/600x600/png?text=Classic,Urbano,37|38|39
+DEMO-003,Sin precio,Esta fila muestra un error de validación,,4,,Urbano,
