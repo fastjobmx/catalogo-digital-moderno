@@ -1,11 +1,12 @@
 "use client"
 
 import { useRef, useState, useTransition, type FormEvent } from "react"
-import { CheckCircle2, ShoppingBag, Trash2 } from "lucide-react"
+import { CheckCircle2, MessageCircle, ShoppingBag, Trash2 } from "lucide-react"
 import { submitOrder } from "@/app/[slug]/actions"
 import type { Vendor } from "@/lib/api"
 import { formatMoney } from "@/lib/utils"
 import { useCart } from "./cart-context"
+import { EmptyState } from "./empty-state"
 import { QuantityStepper } from "./quantity-stepper"
 import { Button } from "./ui/button"
 import { Sheet } from "./ui/sheet"
@@ -15,9 +16,25 @@ const inputClass =
 
 type Confirmation = { displayId: number; total: number }
 
-export function CartBar({ vendor }: { vendor: Vendor }) {
-  const { lines, count, total, setQuantity, clear } = useCart()
-  const [open, setOpen] = useState(false)
+function PaymentList({ vendor }: { vendor: Vendor }) {
+  if (!vendor.payment_methods.length) {
+    return null
+  }
+  return (
+    <ul className="rounded-xl bg-canvas p-3 text-left text-sm">
+      <li className="mb-1 font-bold">Medios de pago</li>
+      {vendor.payment_methods.map((method) => (
+        <li key={method.name}>
+          {method.name}
+          {method.detail ? `: ${method.detail}` : ""}
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+export function CartDrawer({ vendor }: { vendor: Vendor }) {
+  const { lines, count, total, setQuantity, clear, open, setOpen } = useCart()
   const [error, setError] = useState<string | null>(null)
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null)
   const [pending, startTransition] = useTransition()
@@ -62,11 +79,13 @@ export function CartBar({ vendor }: { vendor: Vendor }) {
 
   return (
     <>
-      {count > 0 && (
-        <div className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-surface p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-          <Button className="mx-auto flex w-full max-w-md" onClick={() => setOpen(true)}>
+      {count > 0 && !open && (
+        <div className="fixed inset-x-0 bottom-0 z-10 hidden p-3 pr-20 max-md:block">
+          <Button className="w-full shadow-card-hover" onClick={() => setOpen(true)}>
             <ShoppingBag className="size-5" aria-hidden />
-            Ver pedido ({count}) · {money(total)}
+            <span className="tabular-nums">
+              Ver pedido ({count}) · {money(total)}
+            </span>
           </Button>
         </div>
       )}
@@ -79,30 +98,24 @@ export function CartBar({ vendor }: { vendor: Vendor }) {
         {confirmation ? (
           <div className="space-y-3 p-5 text-center">
             <CheckCircle2 className="mx-auto size-12 text-brand" aria-hidden />
-            <h2 className="text-xl font-semibold">
+            <h2 className="text-xl">
               Pedido #{confirmation.displayId} por {money(confirmation.total)}
             </h2>
             <p className="text-sm text-muted">
               Te enviamos el resumen por WhatsApp. {vendor.name} se contactará contigo
               para coordinar el pago y la entrega.
             </p>
-            {vendor.payment_methods.length > 0 && (
-              <ul className="rounded-xl bg-canvas p-3 text-left text-sm">
-                <li className="mb-1 font-medium">Medios de pago</li>
-                {vendor.payment_methods.map((method) => (
-                  <li key={method.name}>
-                    {method.name}
-                    {method.detail ? `: ${method.detail}` : ""}
-                  </li>
-                ))}
-              </ul>
-            )}
+            <PaymentList vendor={vendor} />
             <Button className="w-full" onClick={() => onOpenChange(false)}>
               Seguir viendo el catálogo
             </Button>
           </div>
         ) : lines.length === 0 ? (
-          <p className="p-8 text-center text-muted">Tu carrito está vacío.</p>
+          <EmptyState
+            kind="cart"
+            title="Tu carrito está vacío"
+            description="Agrega productos del catálogo para hacer tu pedido."
+          />
         ) : (
           <form onSubmit={onSubmit} className="space-y-4 p-4">
             <ul className="divide-y divide-line">
@@ -113,14 +126,14 @@ export function CartBar({ vendor }: { vendor: Vendor }) {
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
-                    src={line.image_url ?? undefined}
+                    src={line.image_url?.replace("-1200.webp", "-300.webp") ?? undefined}
                     alt=""
-                    className="size-14 shrink-0 rounded-lg bg-line object-cover"
+                    className="size-16 shrink-0 rounded-lg bg-photo object-cover"
                   />
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium">{line.title}</p>
-                    <p className="text-xs text-muted">
-                      {line.size ? `Talla ${line.size} · ` : ""}
+                    <p className="truncate text-sm font-semibold">{line.title}</p>
+                    <p className="text-xs text-muted tabular-nums">
+                      {line.size ? `${line.size} · ` : ""}
                       {money(line.price)}
                     </p>
                     <div className="mt-1 flex items-center justify-between">
@@ -146,13 +159,15 @@ export function CartBar({ vendor }: { vendor: Vendor }) {
               ))}
             </ul>
 
-            <p className="flex justify-between border-t border-line pt-3 font-semibold">
+            <p className="flex justify-between border-t border-line pt-3 font-extrabold tabular-nums">
               <span>Total</span>
               <span>{money(total)}</span>
             </p>
 
+            <PaymentList vendor={vendor} />
+
             <div className="space-y-3">
-              <label className="block text-sm font-medium">
+              <label className="block text-sm font-semibold">
                 Nombre
                 <input
                   name="name"
@@ -162,7 +177,7 @@ export function CartBar({ vendor }: { vendor: Vendor }) {
                   className={`${inputClass} mt-1 font-normal`}
                 />
               </label>
-              <label className="block text-sm font-medium">
+              <label className="block text-sm font-semibold">
                 Celular con WhatsApp
                 <input
                   name="phone"
@@ -174,7 +189,7 @@ export function CartBar({ vendor }: { vendor: Vendor }) {
                   className={`${inputClass} mt-1 font-normal`}
                 />
               </label>
-              <label className="block text-sm font-medium">
+              <label className="block text-sm font-semibold">
                 Dirección (opcional)
                 <input
                   name="address"
@@ -182,7 +197,7 @@ export function CartBar({ vendor }: { vendor: Vendor }) {
                   className={`${inputClass} mt-1 font-normal`}
                 />
               </label>
-              <label className="block text-sm font-medium">
+              <label className="block text-sm font-semibold">
                 Notas (opcional)
                 <textarea
                   name="notes"
@@ -199,8 +214,9 @@ export function CartBar({ vendor }: { vendor: Vendor }) {
               </p>
             )}
 
-            <Button type="submit" className="w-full" disabled={pending}>
-              {pending ? "Enviando…" : "Solicitar pedido"}
+            <Button type="submit" variant="whatsapp" className="w-full" disabled={pending}>
+              <MessageCircle className="size-5" aria-hidden />
+              {pending ? "Enviando…" : "Enviar pedido por WhatsApp"}
             </Button>
           </form>
         )}

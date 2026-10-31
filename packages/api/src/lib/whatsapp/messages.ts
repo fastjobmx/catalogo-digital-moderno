@@ -41,8 +41,8 @@ function toTemplateParam(value: string): string {
 }
 
 function itemLabel(item: OrderForMessage["items"][number]): string {
-  const size = item.size ? ` talla ${item.size}` : ""
-  return `${item.quantity}x ${item.title}${size} (${item.sku})`
+  const size = item.size ? ` (${item.size})` : ""
+  return `${item.quantity}x ${item.title}${size} [${item.sku}]`
 }
 
 function paymentLabel(methods: PaymentMethod[]): string {

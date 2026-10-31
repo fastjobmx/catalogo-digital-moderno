@@ -69,6 +69,7 @@ function productFields(row: ImportRow, metadata?: Record<string, any> | null) {
       sizes: row.sizes.length ? row.sizes : (metadata?.sizes ?? []),
       compare_at_price: row.compare_at_price ?? metadata?.compare_at_price ?? null,
       is_featured: row.is_featured ?? metadata?.is_featured ?? false,
+      ...row.extra,
     },
   }
 }

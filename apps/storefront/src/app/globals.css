@@ -1,23 +1,32 @@
 @import "tailwindcss";
 
+/* Tailwind 4 define los tokens aquí, no en tailwind.config. */
 @theme inline {
-  --color-brand: var(--brand);
-  --color-brand-foreground: var(--brand-foreground);
-  --color-accent: var(--accent);
-  --color-accent-foreground: var(--accent-foreground);
+  --color-brand: var(--brand-primary);
+  --color-brand-foreground: var(--brand-on-primary);
+  --color-accent: var(--brand-secondary);
+  --color-accent-foreground: var(--brand-on-secondary);
   --color-surface: #ffffff;
-  --color-canvas: #f6f6f4;
-  --color-ink: #17181a;
-  --color-muted: #63666b;
-  --color-line: #e4e4e0;
+  --color-canvas: #f8f9fa;
+  --color-ink: #212529;
+  --color-muted: #6c757d;
+  --color-line: #e9ecef;
+  --color-photo: #f3f4f6;
   --color-danger: #b42318;
+  --color-success: #15803d;
+  --color-whatsapp: #128c4f;
+  --font-sans: var(--font-manrope), system-ui, sans-serif;
+  --radius-card: 16px;
+  --shadow-card: 0 4px 12px rgba(0, 0, 0, 0.05);
+  --shadow-card-hover: 0 8px 24px rgba(0, 0, 0, 0.08);
 }
 
+/* Tema de plataforma; cada /[slug] lo sobrescribe con los colores del proveedor. */
 :root {
-  --brand: #111827;
-  --brand-foreground: #ffffff;
-  --accent: #f59e0b;
-  --accent-foreground: #111827;
+  --brand-primary: #0057ff;
+  --brand-on-primary: #ffffff;
+  --brand-secondary: #c1ff00;
+  --brand-on-secondary: #111827;
 }
 
 html {
@@ -27,7 +36,14 @@ html {
 body {
   background: var(--color-canvas);
   color: var(--color-ink);
-  font-family: var(--font-sans), system-ui, sans-serif;
+  font-family: var(--font-sans);
+}
+
+h1,
+h2,
+h3 {
+  font-weight: 800;
+  letter-spacing: -0.01em;
 }
 
 /* Inputs a 16px: iOS Safari no hace zoom al enfocarlos. */
@@ -37,14 +53,37 @@ select {
   font-size: 16px;
 }
 
-.no-scrollbar {
-  scrollbar-width: none;
-}
-
 button {
   cursor: pointer;
 }
 
 button:disabled {
   cursor: not-allowed;
+}
+
+.no-scrollbar {
+  scrollbar-width: none;
+}
+
+.shimmer {
+  background: linear-gradient(100deg, #eceef0 30%, #f7f8f9 50%, #eceef0 70%);
+  background-size: 200% 100%;
+  animation: shimmer 1.3s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

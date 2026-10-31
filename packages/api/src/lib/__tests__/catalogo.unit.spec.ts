@@ -103,7 +103,7 @@ describe("mensajes de WhatsApp", () => {
     expect(template).toBe("pedido_proveedor")
     expect(params).toHaveLength(6)
     params.forEach((param) => expect(param).not.toMatch(/[\n\t]| {2,}/))
-    expect(params[1]).toBe("2x Runner talla 40 (T1)")
+    expect(params[1]).toBe("2x Runner (40) [T1]")
   })
 
   it("incluye total y medios de pago para el cliente", () => {

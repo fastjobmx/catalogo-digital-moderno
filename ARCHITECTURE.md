@@ -26,6 +26,7 @@ tools/dev.mjs           Arranque de un comando (dev-db.mjs: Postgres embebido)
 tools/verify-e2e.mjs    Verificación de punta a punta
 fixtures/               CSV de la verificación
 docs/                   Plantillas de WhatsApp y CSV de ejemplo
+seed/catalog.json       Comercios y productos de prueba
 ```
 
 ## Flujo de un pedido
@@ -101,6 +102,16 @@ Los workers viven en el proceso del backend. Medusa no entrega su contenedor al 
 - Si un mensaje ya tiene `provider_message_id`, no se reenvía: un reintento no duplica.
 - Cada minuto se rescatan los mensajes que no alcanzaron a encolarse.
 
+### Datos y fotos del seed
+`seed/catalog.json` es la fuente única: lo leen `seed-images` y `db:seed`. Separar ambos pasos permite sembrar sin internet. El seed compara un hash por producto, así que repetirlo solo escribe lo que cambió.
+
+Wikimedia Commons es una fuente agregada: no pide key y da licencia y autor por foto. Es el último recurso antes del placeholder porque su relevancia es desigual, aun filtrando por el título del archivo.
+
+Las URLs de las fotos se guardan absolutas (`SEED_ASSET_BASE_URL`) porque el importador exige URLs válidas. Para desplegar, las fotos deben subirse a un storage y sembrarse con esa base.
+
+### Variantes
+Los ejes viven en `product.metadata.options`, sin crear variantes de Medusa, por la misma razón que las tallas: hay un solo stock por referencia. `order_request_item.size` guarda la combinación elegida, como `M / Negro`, y `assertValidVariant` la valida en el servidor.
+
 ### Sandbox de WhatsApp
 `getWhatsAppProvider` elige la implementación con `WHATSAPP_PROVIDER`: `mock`, `cloud` o `twilio`. `whatsapp_message` sigue siendo la cola y el estado de entrega con cualquier proveedor; `whatsapp_outbox` es solo el registro del mock.
 
@@ -140,6 +151,7 @@ Next.js 16 en lugar de 14: Mercur ya lo usa y 14 quedó sin soporte. `xlsx` se i
 - `S3_BUCKET` y sus variables cambian los logos de disco local a S3. Sin configurarlo, los archivos se pierden si el servidor no tiene disco persistente.
 - Quita `ORDER_RATE_LIMIT_PER_HOUR` del `.env`, para volver al límite de 5.
 - Activa `WHATSAPP_PROVIDER=cloud` o `twilio`, aprueba las plantillas y registra el webhook (`docs/whatsapp-plantillas.md`).
+- Las rutas de storefront nuevas son aditivas: `GET /store/catalogs/:slug/products/:sku`, `GET /vendor/dashboard` y `GET /vendor/catalog-products`.
 - Cambia `JWT_SECRET`, `COOKIE_SECRET` y las contraseñas de prueba.
 - Comisiones: la vista global aplica un porcentaje fijo sobre todos los pedidos no cancelados. Es un informe, no una liquidación.
 - Las pantallas propias están en español; el resto de los paneles de Mercur viene en inglés porque Mercur solo trae ese idioma en esta plantilla.

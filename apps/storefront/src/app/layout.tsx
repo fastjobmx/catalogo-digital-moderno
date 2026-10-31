@@ -1,8 +1,8 @@
 import type { Metadata, Viewport } from "next"
-import { DM_Sans } from "next/font/google"
+import { Manrope } from "next/font/google"
 import "./globals.css"
 
-const font = DM_Sans({ subsets: ["latin"], variable: "--font-sans" })
+const font = Manrope({ subsets: ["latin"], variable: "--font-manrope" })
 
 export const metadata: Metadata = {
   title: "Catálogo",

@@ -29,6 +29,8 @@ const bodySchema = z.object({
   logo: z.string().url().nullable(),
   primary_color: hexColor,
   secondary_color: hexColor,
+  banner: z.string().url().nullish(),
+  image_ratio: z.enum(["1:1", "4:5", "4:3"]).optional(),
   whatsapp_phone: z.string().trim().min(7).max(24),
   payment_methods: z
     .array(
@@ -47,7 +49,7 @@ async function loadBrand(req: AuthenticatedMedusaRequest) {
     data: [seller],
   } = await query.graph({
     entity: "seller",
-    fields: ["id", "name", "handle", "logo", "status"],
+    fields: ["id", "name", "handle", "logo", "banner", "status"],
     filters: { id: sellerId },
   })
   const profile = await getOrCreateProfile(req.scope, sellerId)
@@ -55,6 +57,8 @@ async function loadBrand(req: AuthenticatedMedusaRequest) {
     name: seller.name,
     slug: seller.handle,
     logo: seller.logo,
+    banner: seller.banner,
+    image_ratio: profile.image_ratio,
     status: seller.status,
     primary_color: profile.primary_color,
     secondary_color: profile.secondary_color,
@@ -92,7 +96,12 @@ export async function POST(req: AuthenticatedMedusaRequest, res: MedusaResponse)
   await updateSellersWorkflow(req.scope).run({
     input: {
       selector: { id: sellerId },
-      update: { name: body.name, handle: body.slug, logo: body.logo },
+      update: {
+        name: body.name,
+        handle: body.slug,
+        logo: body.logo,
+        ...(body.banner !== undefined ? { banner: body.banner } : {}),
+      },
     },
   })
 
@@ -104,6 +113,7 @@ export async function POST(req: AuthenticatedMedusaRequest, res: MedusaResponse)
     secondary_color: body.secondary_color,
     whatsapp_phone: whatsappPhone,
     payment_methods: { items: body.payment_methods },
+    ...(body.image_ratio ? { image_ratio: body.image_ratio } : {}),
   })
 
   res.json({ brand: await loadBrand(req) })

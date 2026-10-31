@@ -8,13 +8,24 @@ export type Vendor = {
   name: string
   slug: string
   logo: string | null
+  banner: string | null
+  banner_blur: string | null
   description: string | null
   currency_code: string
   primary_color: string
   secondary_color: string
   payment_methods: PaymentMethod[]
   accepts_orders: boolean
+  whatsapp_phone: string | null
+  rubro: string | null
+  city: string | null
+  instagram: string | null
+  business_hours: string | null
+  delivery_time: string | null
+  image_ratio: string
 }
+
+export type ProductOption = { name: string; values: string[] }
 
 export type Product = {
   offer_id: string
@@ -23,18 +34,32 @@ export type Product = {
   description: string | null
   image_url: string | null
   images: string[]
+  blur: string[]
   category: string | null
+  subcategory: string | null
   brand: string | null
   sizes: string[]
+  options: ProductOption[]
+  sold_out_options: string[]
+  notice: string | null
   price: number
   compare_at_price: number | null
   is_featured: boolean
+  is_new: boolean
+  is_best_seller: boolean
   stock: number
+}
+
+export type Facets = {
+  brands: string[]
+  options: ProductOption[]
+  price: { min: number; max: number } | null
 }
 
 export type Catalog = {
   vendor: Vendor
   categories: string[]
+  facets: Facets
   products: Product[]
   count: number
   offset: number
@@ -52,9 +77,20 @@ export function backendFetch(path: string, init?: RequestInit) {
   })
 }
 
+export type CatalogParams = {
+  q?: string
+  category?: string
+  brand?: string
+  min_price?: string
+  max_price?: string
+  options?: string
+  offset?: number
+  limit?: number
+}
+
 export async function getCatalog(
   slug: string,
-  params: { q?: string; category?: string; offset?: number; limit?: number }
+  params: CatalogParams
 ): Promise<Catalog | null> {
   const search = new URLSearchParams()
   Object.entries(params).forEach(([key, value]) => {
@@ -75,4 +111,18 @@ export async function getCatalog(
     throw new Error(`Catálogo: HTTP ${response.status}`)
   }
   return response.json()
+}
+
+export async function getProduct(slug: string, sku: string) {
+  const response = await backendFetch(
+    `/store/catalogs/${encodeURIComponent(slug)}/products/${encodeURIComponent(sku)}`,
+    { cache: "no-store" }
+  )
+  if (response.status === 404) {
+    return null
+  }
+  if (!response.ok) {
+    throw new Error(`Producto: HTTP ${response.status}`)
+  }
+  return response.json() as Promise<{ product: Product; related: Product[] }>
 }

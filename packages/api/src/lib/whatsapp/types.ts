@@ -18,7 +18,7 @@ export class WhatsAppSendError extends Error {
   }
 }
 
-export interface WhatsAppProvider {
+export interface MessagingProvider {
   readonly name: string
   send(message: OutgoingMessage): Promise<SendResult>
 }

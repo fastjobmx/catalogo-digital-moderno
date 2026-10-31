@@ -27,6 +27,8 @@ type CartValue = {
   add: (line: Omit<CartLine, "quantity">, quantity: number) => void
   setQuantity: (offerId: string, size: string | null, quantity: number) => void
   clear: () => void
+  open: boolean
+  setOpen: (open: boolean) => void
 }
 
 const CartContext = createContext<CartValue | null>(null)
@@ -47,6 +49,7 @@ export function CartProvider({ slug, children }: { slug: string; children: React
   const storageKey = `cart:${slug}`
   const [lines, setLines] = useState<CartLine[]>([])
   const [loaded, setLoaded] = useState(false)
+  const [open, setOpen] = useState(false)
 
   useEffect(() => {
     try {
@@ -107,8 +110,10 @@ export function CartProvider({ slug, children }: { slug: string; children: React
       add,
       setQuantity,
       clear,
+      open,
+      setOpen,
     }),
-    [lines, add, setQuantity, clear]
+    [lines, add, setQuantity, clear, open]
   )
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>

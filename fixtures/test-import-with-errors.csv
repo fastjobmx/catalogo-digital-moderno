@@ -1,0 +1,6 @@
+sku,name,description,price,stock,category,brand,image_url
+E2E-0101,Tenis válido uno,Fila válida.,"249.900",4,Deportivos,Reebok,http://localhost:3100/seed-images/sneakerhub-co/SNK-0010-1-1200.webp
+E2E-0102,Tenis con precio negativo,Fila inválida.,-50000,4,Urbanos,Converse,http://localhost:3100/seed-images/sneakerhub-co/SNK-0003-1-1200.webp
+E2E-0103,Tenis válido dos,Fila válida.,"279.900",3,Urbanos,Jordan,http://localhost:3100/seed-images/sneakerhub-co/SNK-0019-1-1200.webp
+E2E-0103,Tenis con SKU duplicado,Fila inválida.,"189.900",2,Urbanos,Vans,http://localhost:3100/seed-images/sneakerhub-co/SNK-0004-1-1200.webp
+E2E-0104,Tenis válido tres,Fila válida.,"199.900",7,Deportivos,Puma,http://localhost:3100/seed-images/sneakerhub-co/SNK-0011-1-1200.webp

@@ -1,17 +1,22 @@
 // Verificación de punta a punta contra el sistema corriendo (npm run dev).
-import { readFileSync } from "node:fs"
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import path from "node:path"
+import { chromium } from "playwright"
 import pg from "pg"
 import { read, utils } from "xlsx"
 
 const root = path.resolve(import.meta.dirname, "..")
 const API = process.env.API_URL || "http://localhost:9000"
 const STOREFRONT = process.env.STOREFRONT_URL || "http://localhost:3100"
+const PANEL = process.env.PANEL_URL || "http://localhost:7001"
 const SLUG = "sneakerhub-co"
 const VENDOR_EMAIL = `admin+${SLUG}@test.com`
+const PASSWORD = "Test1234!"
 const VENDOR_PHONE = "+573001112233"
 const CUSTOMER = { name: "Cliente Prueba 1", phone: "+573101112233" }
 const NEW_COLOR = "#FF5733"
+const SEED = JSON.parse(readFileSync(path.join(root, "seed/catalog.json"), "utf8"))
+const SHOTS = path.join(root, "screenshots")
 
 const envValue = (file, name) =>
   readFileSync(path.join(root, file), "utf8").match(new RegExp(`^${name}=(.*)$`, "m"))?.[1].trim()
@@ -40,16 +45,27 @@ async function call(method, url, headers = {}, body) {
   return { status: response.status, json, text }
 }
 
+/** Primera combinación disponible, en el formato "M / Negro" que espera el pedido. */
+const variantOf = (product) =>
+  product.options
+    .map(
+      (option) =>
+        option.values.find((value) => !product.sold_out_options.includes(value)) ??
+        option.values[0]
+    )
+    .join(" / ") || null
+
 const results = []
+const stats = { vendors: 0, products: 0, images: 0, placeholders: 0, shots: 0 }
 
 async function scenario(name, run) {
   try {
     const detail = await run()
     results.push({ name, ok: true })
-    console.log(`✅ ${name}${detail ? ` (${detail})` : ""}`)
+    console.log(`✅ ${results.length}. ${name}${detail ? ` (${detail})` : ""}`)
   } catch (error) {
     results.push({ name, ok: false })
-    console.log(`❌ ${name}\n   ${error.message}`)
+    console.log(`❌ ${results.length}. ${name}\n   ${error.message}`)
   }
 }
 
@@ -60,24 +76,13 @@ function csvRows(file) {
     defval: null,
     raw: false,
   })
-  return rows.map((row) => ({
-    sku: row["SKU"],
-    title: row["Nombre"],
-    description: row["Descripción"],
-    price: row["Precio"],
-    stock: row["Stock"],
-    image_url: row["Imagen URL"],
-    category: row["Categoría"],
-    brand: row["Marca"],
-    sizes: row["Tallas"],
-  }))
+  return rows.map(({ name, ...row }) => ({ ...row, title: name }))
 }
 
 async function importCsv(vendor, file) {
-  const rows = csvRows(file)
   const preview = await call("POST", "/vendor/catalog-imports", vendor, {
     file_name: path.basename(file),
-    rows,
+    rows: csvRows(file),
   })
   assert(preview.status === 201, `Previsualización: HTTP ${preview.status} ${preview.text}`)
   const id = preview.json.import.id
@@ -94,9 +99,97 @@ async function importCsv(vendor, file) {
   throw new Error("La importación no terminó a tiempo")
 }
 
-async function main() {
-  const started = Date.now()
+async function checkUrls(urls) {
+  const queue = [...new Set(urls)]
+  const broken = []
+  await Promise.all(
+    Array.from({ length: 12 }, async () => {
+      while (queue.length) {
+        const url = queue.pop()
+        const response = await fetch(url, { method: "HEAD" }).catch(() => null)
+        if (!response?.ok) {
+          broken.push(url)
+        }
+      }
+    })
+  )
+  return broken
+}
 
+async function captureScreenshots(store) {
+  rmSync(SHOTS, { recursive: true, force: true })
+  mkdirSync(SHOTS, { recursive: true })
+  const browser = await chromium.launch({ channel: "chromium" })
+  const sizes = {
+    mobile: { width: 375, height: 812 },
+    desktop: { width: 1440, height: 900 },
+  }
+  const shots = []
+  const overflow = []
+
+  const capture = async (page, file, url, label) => {
+    await page.goto(url, { waitUntil: "networkidle" })
+    await page.waitForTimeout(400)
+    if (await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)) {
+      overflow.push(file)
+    }
+    await page.screenshot({ path: path.join(SHOTS, file) })
+    shots.push({ file, label })
+  }
+
+  for (const [device, viewport] of Object.entries(sizes)) {
+    const page = await browser.newPage({ viewport })
+    for (const vendor of SEED.vendors) {
+      const { json } = await call("GET", `/store/catalogs/${vendor.slug}?limit=100`, store)
+      const product = json.products.find((p) => p.stock > 0 && p.is_featured) ?? json.products[0]
+      await capture(
+        page,
+        `${vendor.slug}-home-${device}.png`,
+        `${STOREFRONT}/${vendor.slug}`,
+        `${vendor.name}: inicio (${device})`
+      )
+      await capture(
+        page,
+        `${vendor.slug}-detalle-${device}.png`,
+        `${STOREFRONT}/${vendor.slug}/p/${encodeURIComponent(product.sku)}`,
+        `${vendor.name}: detalle (${device})`
+      )
+    }
+    await page.close()
+  }
+
+  const panel = await browser.newPage({ viewport: sizes.desktop })
+  await panel.goto(PANEL, { waitUntil: "domcontentloaded" })
+  await panel.getByLabel("Email").fill(VENDOR_EMAIL)
+  await panel.getByLabel("Password").fill(PASSWORD)
+  await panel.getByRole("button", { name: "Log in" }).click()
+  await panel.getByText("SneakerHub CO").first().click({ timeout: 20_000 })
+  await panel.getByText("Resumen", { exact: true }).first().click({ timeout: 20_000 })
+  await panel.getByText("Últimos pedidos").waitFor({ timeout: 20_000 })
+  await panel.screenshot({ path: path.join(SHOTS, "panel-dashboard-desktop.png") })
+  shots.push({ file: "panel-dashboard-desktop.png", label: "Panel: resumen" })
+  await browser.close()
+
+  writeFileSync(
+    path.join(SHOTS, "index.html"),
+    `<!doctype html><html lang="es"><meta charset="utf-8"><title>Capturas</title>
+<style>body{font:14px system-ui;margin:24px;background:#f8f9fa;color:#212529}
+main{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px}
+figure{margin:0;background:#fff;border-radius:12px;padding:8px;box-shadow:0 4px 12px rgba(0,0,0,.05)}
+img{width:100%;border-radius:8px;display:block}figcaption{padding:6px 2px 0;font-weight:600}</style>
+<h1>Capturas de verificación</h1><main>${shots
+      .map(
+        (s) =>
+          `<figure><a href="${s.file}"><img src="${s.file}" alt="${s.label}" loading="lazy"></a><figcaption>${s.label}</figcaption></figure>`
+      )
+      .join("")}</main></html>`
+  )
+  stats.shots = shots.length
+  assert(!overflow.length, `Scroll horizontal en: ${overflow.join(", ")}`)
+  return `${shots.length} capturas`
+}
+
+async function main() {
   const health = await fetch(`${API}/health`).catch(() => null)
   if (!health?.ok) {
     console.error(`No hay backend en ${API}. Arráncalo primero con: npm run dev`)
@@ -109,8 +202,8 @@ async function main() {
   const db = new pg.Client(envValue("packages/api/.env", "DATABASE_URL"))
   await db.connect()
 
-  const catalog = (query = "limit=100") =>
-    call("GET", `/store/catalogs/${SLUG}?${query}`, store)
+  const catalog = (query = "limit=100", slug = SLUG) =>
+    call("GET", `/store/catalogs/${slug}?${query}`, store)
 
   const findOutbox = async (to, displayId) => {
     for (let i = 0; i < 40; i++) {
@@ -138,7 +231,7 @@ async function main() {
   await scenario("Login del proveedor", async () => {
     const login = await call("POST", "/auth/member/emailpass", {}, {
       email: VENDOR_EMAIL,
-      password: "Test1234!",
+      password: PASSWORD,
     })
     assert(login.status === 200, `HTTP ${login.status}`)
     const auth = { authorization: `Bearer ${login.json.token}` }
@@ -149,31 +242,25 @@ async function main() {
     return VENDOR_EMAIL
   })
 
-  await scenario("Personalización de marca", async () => {
+  await scenario("Cambio de color visible en el catálogo", async () => {
     originalBrand = (await call("GET", "/vendor/brand", vendor)).json.brand
-    const { status, name, slug, logo, secondary_color, whatsapp_phone, payment_methods } =
-      originalBrand
+    const { status, ...brand } = originalBrand
     assert(status === "open", `Proveedor en estado ${status}`)
     const saved = await call("POST", "/vendor/brand", vendor, {
-      name,
-      slug,
-      logo,
+      ...brand,
       primary_color: NEW_COLOR,
-      secondary_color,
-      whatsapp_phone,
-      payment_methods,
     })
     assert(saved.status === 200, `HTTP ${saved.status} ${saved.text}`)
     const page = await call("GET", `${STOREFRONT}/${SLUG}`)
     assert(page.status === 200, `Catálogo público: HTTP ${page.status}`)
     assert(
-      page.text.toLowerCase().includes(`--brand:${NEW_COLOR.toLowerCase()}`),
+      page.text.toLowerCase().includes(`--brand-primary:${NEW_COLOR.toLowerCase()}`),
       `El HTML público no trae el color ${NEW_COLOR}`
     )
-    return `${NEW_COLOR} visible en el catálogo público`
+    return `${NEW_COLOR} en el HTML público`
   })
 
-  await scenario("Carga masiva CSV", async () => {
+  await scenario("Carga de test-import.csv", async () => {
     const { preview, job } = await importCsv(vendor, "fixtures/test-import.csv")
     assert(preview.valid_rows === 5, `${preview.valid_rows} filas válidas, se esperaban 5`)
     assert(job.created_count + job.updated_count === 5, "No se procesaron las 5 filas")
@@ -183,17 +270,53 @@ async function main() {
     return `${job.created_count} creados, ${job.updated_count} actualizados`
   })
 
-  await scenario("Catálogo público carga", async () => {
+  await scenario("Catálogo público de SneakerHub", async () => {
     const { json } = await catalog()
-    assert(json.count >= 30, `Solo ${json.count} productos`)
+    assert(json.count >= 20, `Solo ${json.count} productos`)
     const page = await call("GET", `${STOREFRONT}/${SLUG}?limite=100`)
     assert(page.status === 200, `HTTP ${page.status}`)
-    const rendered = json.products.filter((p) => page.text.includes(p.sku) || page.text.includes(p.title))
-    assert(rendered.length >= 30, `El HTML solo muestra ${rendered.length} productos`)
-    return `${json.count} productos, ${rendered.length} en el HTML`
+    const rendered = json.products.filter((p) => page.text.includes(p.title))
+    assert(rendered.length >= 20, `El HTML solo muestra ${rendered.length} productos`)
+    return `${json.count} productos`
   })
 
-  await scenario("Selección y creación de pedido", async () => {
+  await scenario("Los 8 proveedores responden", async () => {
+    const summary = []
+    for (const { slug, products } of SEED.vendors) {
+      const page = await call("GET", `${STOREFRONT}/${slug}`)
+      assert(page.status === 200, `/${slug}: HTTP ${page.status}`)
+      const { json } = await catalog("limit=100", slug)
+      assert(json.count >= 20, `/${slug}: solo ${json.count} productos`)
+      assert(json.count >= products.length, `/${slug}: faltan productos del seed`)
+      stats.vendors += 1
+      summary.push(json.count)
+    }
+    return summary.join(", ")
+  })
+
+  await scenario("Imágenes del seed", async () => {
+    const urls = []
+    for (const { slug, prefix } of SEED.vendors) {
+      const { json } = await catalog("limit=100", slug)
+      const seeded = json.products.filter((p) => p.sku.startsWith(`${prefix}-`))
+      stats.products += seeded.length
+      for (const product of seeded) {
+        assert(product.images.length > 0, `${product.sku} no tiene imagen`)
+        stats.placeholders += product.images.some((url) => url.endsWith(".svg")) ? 1 : 0
+        urls.push(...product.images)
+      }
+      if (json.vendor.banner) {
+        urls.push(json.vendor.banner)
+      }
+      urls.push(json.vendor.logo)
+    }
+    stats.images = urls.length
+    const broken = await checkUrls(urls)
+    assert(!broken.length, `${broken.length} rotas, por ejemplo ${broken[0]}`)
+    return `${urls.length} URLs 200, ${stats.placeholders} productos con placeholder`
+  })
+
+  await scenario("Pedido con 3 productos", async () => {
     const { json } = await catalog()
     const picks = json.products
       .filter((p) => p.stock > 0 && !p.sku.startsWith("E2E-"))
@@ -206,7 +329,7 @@ async function main() {
       customer_name: CUSTOMER.name,
       customer_phone: CUSTOMER.phone,
       customer_address: "Calle de prueba 123",
-      items: picks.map((p) => ({ offer_id: p.offer_id, quantity: 1, size: p.sizes[0] })),
+      items: picks.map((p) => ({ offer_id: p.offer_id, quantity: 1, size: variantOf(p) })),
     })
     assert(created.status === 202, `HTTP ${created.status} ${created.text}`)
     order = created.json.order
@@ -233,7 +356,7 @@ async function main() {
     return `${row.template} a ${row.to}`
   })
 
-  await scenario("Producto agotado", async () => {
+  await scenario("Producto con stock 0", async () => {
     const { json } = await catalog()
     const soldOut = json.products.find((p) => p.stock === 0)
     assert(soldOut, "No hay productos agotados")
@@ -241,7 +364,7 @@ async function main() {
       idempotency_key: `verify-out-${Date.now()}`,
       customer_name: CUSTOMER.name,
       customer_phone: CUSTOMER.phone,
-      items: [{ offer_id: soldOut.offer_id, quantity: 1, size: soldOut.sizes[0] }],
+      items: [{ offer_id: soldOut.offer_id, quantity: 1, size: variantOf(soldOut) }],
     })
     assert(rejected.status === 400, `HTTP ${rejected.status}: debía rechazarse`)
     assert(/agotado/i.test(rejected.json.message), `Mensaje poco claro: ${rejected.json.message}`)
@@ -249,32 +372,38 @@ async function main() {
   })
 
   await scenario("Importación con errores", async () => {
-    const { preview, job } = await importCsv(vendor, "fixtures/test-import-errors.csv")
-    assert(preview.invalid_rows === 1, `${preview.invalid_rows} filas inválidas, se esperaba 1`)
-    assert(preview.errors[0].sku === "E2E-0102", "Se rechazó una fila equivocada")
-    assert(job.created_count + job.updated_count === 2, "No se procesaron las 2 filas válidas")
+    const { preview, job } = await importCsv(vendor, "fixtures/test-import-with-errors.csv")
+    assert(preview.invalid_rows === 2, `${preview.invalid_rows} filas inválidas, se esperaban 2`)
+    assert(job.created_count + job.updated_count === 3, "No se procesaron las 3 filas válidas")
     const { json } = await catalog("q=E2E-01&limit=100")
     const skus = json.products.map((p) => p.sku)
-    assert(skus.includes("E2E-0101") && skus.includes("E2E-0103"), "Faltan las filas válidas")
+    for (const sku of ["E2E-0101", "E2E-0103", "E2E-0104"]) {
+      assert(skus.includes(sku), `Falta ${sku}`)
+    }
     assert(!skus.includes("E2E-0102"), "La fila inválida llegó al catálogo")
-    return `fila ${preview.errors[0].row}: ${preview.errors[0].message}`
+    return preview.errors.map((e) => `fila ${e.row}: ${e.message}`).join("; ")
   })
 
-  // Deja el sistema como estaba: la verificación se puede repetir sin efectos en el demo.
+  // El color se restaura antes de las capturas y aunque algo haya fallado antes.
   if (originalBrand) {
     const { status: _status, ...brand } = originalBrand
     await call("POST", "/vendor/brand", vendor, brand)
   }
   await db.end()
 
+  await scenario("Capturas visuales", () => captureScreenshots(store))
+
   const passed = results.filter((result) => result.ok).length
-  const seconds = ((Date.now() - started) / 1000).toFixed(1)
-  const line = "=".repeat(44)
+  const ok = passed === results.length
+  const line = "═".repeat(46)
   console.log(`\n${line}`)
-  console.log(`RESUMEN: ${passed}/${results.length} escenarios aprobados en ${seconds} s`)
-  console.log(passed === results.length ? "RESULTADO: OK" : "RESULTADO: FALLÓ")
+  console.log(` VERIFICACIÓN E2E — ${passed}/${results.length} ${ok ? "✅" : "❌"}`)
+  console.log(
+    ` Proveedores: ${stats.vendors} | Productos: ${stats.products} | Imágenes: ${stats.images} (${stats.placeholders} placeholder)`
+  )
+  console.log(` Capturas: /screenshots/index.html (${stats.shots})`)
   console.log(line)
-  process.exit(passed === results.length ? 0 : 1)
+  process.exit(ok ? 0 : 1)
 }
 
 main().catch((error) => {

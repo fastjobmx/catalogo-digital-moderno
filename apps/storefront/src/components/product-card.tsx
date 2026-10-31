@@ -1,175 +1,86 @@
-"use client"
+import Link from "next/link"
+import { MessageCircle } from "lucide-react"
+import type { Product, Vendor } from "@/lib/api"
+import { cn, discountPercent, whatsappLink } from "@/lib/utils"
+import { PriceTag } from "./price-tag"
+import { ProductImage } from "./product-image"
+import { Badge } from "./ui/badge"
+import { buttonVariants } from "./ui/button"
 
-import { useState } from "react"
-import type { Product } from "@/lib/api"
-import { cn, formatMoney } from "@/lib/utils"
-import { useCart } from "./cart-context"
-import { QuantityStepper } from "./quantity-stepper"
-import { Button } from "./ui/button"
-import { Sheet } from "./ui/sheet"
+const CARD_SIZES = "(min-width: 1280px) 22vw, (min-width: 768px) 30vw, 46vw"
 
-type Props = {
-  product: Product
-  currencyCode: string
-  canOrder: boolean
-}
-
-export function ProductCard({ product, currencyCode, canOrder }: Props) {
-  const { add } = useCart()
-  const [open, setOpen] = useState(false)
-  const [size, setSize] = useState<string | null>(null)
-  const [quantity, setQuantity] = useState(1)
-  const [imageIndex, setImageIndex] = useState(0)
+export function ProductCard({ product, vendor }: { product: Product; vendor: Vendor }) {
+  const href = `/${vendor.slug}/p/${encodeURIComponent(product.sku)}`
   const soldOut = product.stock <= 0
-  const gallery = product.images.length
-    ? product.images
-    : product.image_url
-      ? [product.image_url]
-      : []
-  const discount = product.compare_at_price
-    ? Math.round((1 - product.price / product.compare_at_price) * 100)
-    : 0
-  const needsSize = product.sizes.length > 0 && !size
-
-  const confirm = () => {
-    add(
-      {
-        offer_id: product.offer_id,
-        title: product.title,
-        image_url: product.image_url,
-        price: product.price,
-        stock: product.stock,
-        size,
-      },
-      quantity
-    )
-    setOpen(false)
-    setSize(null)
-    setQuantity(1)
-  }
+  const discount = discountPercent(product.price, product.compare_at_price)
 
   return (
-    <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="relative flex h-full w-full flex-col overflow-hidden rounded-2xl border border-line bg-surface text-left"
-      >
-        {(product.is_featured || discount > 0) && !soldOut && (
-          <span className="absolute top-2 left-2 z-10 rounded-full bg-accent px-2 py-0.5 text-xs font-semibold text-accent-foreground">
-            {discount > 0 ? `-${discount}%` : "Destacado"}
-          </span>
-        )}
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={product.image_url ?? undefined}
+    <article className="group relative flex h-full flex-col overflow-hidden rounded-card bg-surface shadow-card transition-shadow duration-200 ease-in-out hover:shadow-card-hover">
+      <Link href={href} aria-label={product.title}>
+        <ProductImage
+          src={product.image_url}
+          blur={product.blur[0]}
           alt=""
-          loading="lazy"
-          className={cn("aspect-square w-full bg-line object-cover", soldOut && "opacity-50")}
+          ratio={vendor.image_ratio}
+          sizes={CARD_SIZES}
+          grayscale={soldOut}
         />
-        <span className="flex flex-1 flex-col gap-1 p-3">
-          {product.brand && (
-            <span className="text-xs text-muted">{product.brand}</span>
-          )}
-          <span className="line-clamp-2 text-sm leading-snug font-medium">
-            {product.title}
-          </span>
-          <span className="mt-auto text-[15px] font-semibold">
-            {formatMoney(product.price, currencyCode)}
-          </span>
-          {discount > 0 && (
-            <span className="text-xs text-muted line-through">
-              {formatMoney(product.compare_at_price as number, currencyCode)}
-            </span>
-          )}
-          {soldOut && <span className="text-xs text-danger">Agotado</span>}
-        </span>
-      </button>
+      </Link>
 
-      <Sheet open={open} onOpenChange={setOpen} title={product.title}>
-        <div className="space-y-4 p-4">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={gallery[imageIndex]}
-            alt={product.title}
-            className="mx-auto aspect-square w-full max-w-64 rounded-xl bg-line object-cover"
+      <div className="absolute top-2 left-2 flex flex-col items-start gap-1">
+        {soldOut ? (
+          <Badge tone="dark">Agotado</Badge>
+        ) : (
+          <>
+            {discount > 0 && <Badge tone="danger">-{discount}%</Badge>}
+            {product.is_new && <Badge tone="accent">Nuevo</Badge>}
+          </>
+        )}
+      </div>
+
+      <div className="flex flex-1 flex-col gap-1 p-3">
+        {product.brand && <p className="text-xs text-muted">{product.brand}</p>}
+        <h3 className="line-clamp-2 min-h-10 text-sm leading-5 font-semibold tracking-normal">
+          <Link href={href}>{product.title}</Link>
+        </h3>
+        <div className="mt-auto pt-1">
+          <PriceTag
+            price={product.price}
+            compareAt={product.compare_at_price}
+            currencyCode={vendor.currency_code}
           />
-          {gallery.length > 1 && (
-            <div className="flex justify-center gap-2">
-              {gallery.map((url, index) => (
-                <button
-                  key={url}
-                  type="button"
-                  aria-label={`Ver imagen ${index + 1}`}
-                  aria-pressed={index === imageIndex}
-                  onClick={() => setImageIndex(index)}
-                  className={cn(
-                    "size-12 overflow-hidden rounded-lg border-2",
-                    index === imageIndex ? "border-brand" : "border-transparent"
-                  )}
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={url} alt="" className="size-full object-cover" />
-                </button>
-              ))}
-            </div>
-          )}
-          <div>
-            <p className="text-lg font-semibold">
-              {formatMoney(product.price, currencyCode)}
-              {discount > 0 && (
-                <span className="ml-2 text-sm font-normal text-muted line-through">
-                  {formatMoney(product.compare_at_price as number, currencyCode)}
-                </span>
-              )}
-            </p>
-            <p className="text-xs text-muted">Ref. {product.sku}</p>
-          </div>
-          {product.description && (
-            <p className="text-sm text-muted">{product.description}</p>
-          )}
-
-          {product.sizes.length > 0 && (
-            <fieldset>
-              <legend className="mb-2 text-sm font-medium">Talla</legend>
-              <div className="flex flex-wrap gap-2">
-                {product.sizes.map((option) => (
-                  <button
-                    key={option}
-                    type="button"
-                    aria-pressed={size === option}
-                    onClick={() => setSize(option)}
-                    className={cn(
-                      "min-h-11 min-w-11 rounded-lg border px-3 text-sm font-medium",
-                      size === option
-                        ? "border-brand bg-brand text-brand-foreground"
-                        : "border-line bg-surface"
-                    )}
-                  >
-                    {option}
-                  </button>
-                ))}
-              </div>
-            </fieldset>
-          )}
-
-          {soldOut ? (
-            <p className="text-sm font-medium text-danger">Producto agotado</p>
-          ) : canOrder ? (
-            <div className="flex items-center gap-3">
-              <QuantityStepper
-                value={quantity}
-                max={product.stock}
-                label={product.title}
-                onChange={setQuantity}
-              />
-              <Button className="flex-1" disabled={needsSize} onClick={confirm}>
-                {needsSize ? "Elige una talla" : "Agregar"}
-              </Button>
-            </div>
-          ) : null}
         </div>
-      </Sheet>
-    </>
+
+        {soldOut ? (
+          vendor.whatsapp_phone && (
+            <a
+              href={whatsappLink(
+                vendor.whatsapp_phone,
+                `Hola, avísenme cuando llegue ${product.title} (${product.sku}).`
+              )}
+              target="_blank"
+              rel="noreferrer"
+              className={cn(
+                buttonVariants({ variant: "outline", size: "small" }),
+                "mt-2 w-full px-2 text-xs"
+              )}
+            >
+              <MessageCircle className="size-4 shrink-0" aria-hidden />
+              Avisarme por WhatsApp
+            </a>
+          )
+        ) : (
+          <Link
+            href={href}
+            className={cn(
+              buttonVariants({ variant: "primary", size: "small" }),
+              "mt-2 w-full lg:opacity-0 lg:group-focus-within:opacity-100 lg:group-hover:opacity-100"
+            )}
+          >
+            Añadir
+          </Link>
+        )}
+      </div>
+    </article>
   )
 }

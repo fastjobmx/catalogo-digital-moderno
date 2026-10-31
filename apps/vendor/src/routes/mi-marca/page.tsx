@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react"
-import { Button, Container, Heading, Input, Label, Text, toast } from "@medusajs/ui"
+import { Button, Container, Heading, Input, Label, Select, Text, toast } from "@medusajs/ui"
 import { Sparkles } from "@medusajs/icons"
 import type { RouteConfig } from "@mercurjs/dashboard-sdk"
+import { HexColorPicker } from "react-colorful"
 import { vendorFetch } from "../../lib/api"
+import { contrastRatio, readableOn } from "../../lib/format"
 
 type PaymentMethod = { name: string; detail?: string }
 
@@ -10,6 +12,8 @@ type Brand = {
   name: string
   slug: string
   logo: string | null
+  banner: string | null
+  image_ratio: string
   primary_color: string
   secondary_color: string
   whatsapp_phone: string | null
@@ -17,10 +21,97 @@ type Brand = {
 }
 
 const STOREFRONT_URL = import.meta.env.VITE_STOREFRONT_URL || "http://localhost:3100"
+const AA = 4.5
 
 export const config: RouteConfig = {
   label: "Mi marca",
   icon: Sparkles,
+}
+
+function ColorField({
+  label,
+  value,
+  onChange,
+}: {
+  label: string
+  value: string
+  onChange: (value: string) => void
+}) {
+  const ratio = contrastRatio(value, readableOn(value))
+  return (
+    <div>
+      <Label>{label}</Label>
+      <div className="mt-1 [&_.react-colorful]:h-32 [&_.react-colorful]:w-full">
+        <HexColorPicker color={value} onChange={onChange} />
+      </div>
+      <Input
+        aria-label={`${label} en hexadecimal`}
+        className="mt-2"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+      />
+      {ratio < AA && (
+        <Text size="small" className="text-ui-fg-error mt-1">
+          Contraste {ratio.toFixed(1)}:1. No cumple AA (mínimo {AA}:1).
+        </Text>
+      )}
+    </div>
+  )
+}
+
+function PhonePreview({ brand }: { brand: Brand }) {
+  const onPrimary = readableOn(brand.primary_color)
+  const onSecondary = readableOn(brand.secondary_color)
+  const aspectRatio = brand.image_ratio.replace(":", " / ")
+  return (
+    <div className="mx-auto w-[260px] rounded-[32px] bg-[#111827] p-2">
+      <div className="overflow-hidden rounded-[26px] bg-[#F8F9FA]">
+        <div
+          className="h-20 bg-cover bg-center"
+          style={{
+            backgroundColor: brand.primary_color,
+            backgroundImage: brand.banner ? `url(${brand.banner})` : undefined,
+          }}
+        />
+        <div className="px-3 pb-3" style={{ background: brand.primary_color, color: onPrimary }}>
+          {brand.logo ? (
+            <img
+              src={brand.logo}
+              alt=""
+              className="-mt-6 size-12 rounded-full bg-white object-cover ring-2 ring-white"
+            />
+          ) : (
+            <div className="-mt-6 size-12 rounded-full bg-white" />
+          )}
+          <p className="mt-1 truncate text-sm font-extrabold">{brand.name}</p>
+        </div>
+        <div className="grid grid-cols-2 gap-2 p-2">
+          {[0, 1].map((item) => (
+            <div key={item} className="overflow-hidden rounded-xl bg-white">
+              <div className="bg-[#E9ECEF]" style={{ aspectRatio }} />
+              <div className="p-2">
+                <div className="h-2 w-3/4 rounded bg-[#E9ECEF]" />
+                <div
+                  className="mt-2 rounded-full py-1 text-center text-[10px] font-bold"
+                  style={{ background: brand.primary_color, color: onPrimary }}
+                >
+                  Añadir
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="p-2 pt-0">
+          <div
+            className="rounded-xl py-2 text-center text-xs font-bold"
+            style={{ background: brand.secondary_color, color: onSecondary }}
+          >
+            Añadir al carrito
+          </div>
+        </div>
+      </div>
+    </div>
+  )
 }
 
 const BrandPage = () => {
@@ -46,7 +137,7 @@ const BrandPage = () => {
       ),
     })
 
-  const uploadLogo = async (file?: File) => {
+  const upload = async (field: "logo" | "banner", file?: File) => {
     if (!file) {
       return
     }
@@ -57,7 +148,7 @@ const BrandPage = () => {
         "/vendor/uploads",
         { method: "POST", body: form }
       )
-      patch({ logo: files[0].url })
+      patch({ [field]: files[0].url })
     } catch (error) {
       toast.error((error as Error).message)
     }
@@ -72,6 +163,8 @@ const BrandPage = () => {
           name: brand.name,
           slug: brand.slug,
           logo: brand.logo,
+          banner: brand.banner,
+          image_ratio: brand.image_ratio,
           primary_color: brand.primary_color,
           secondary_color: brand.secondary_color,
           whatsapp_phone: brand.whatsapp_phone ?? "",
@@ -88,7 +181,7 @@ const BrandPage = () => {
   }
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
+    <div className="grid gap-4 lg:grid-cols-[1fr_300px]">
       <Container className="divide-y p-0">
         <div className="px-6 py-4">
           <Heading>Mi marca</Heading>
@@ -114,26 +207,16 @@ const BrandPage = () => {
               onChange={(e) => patch({ slug: e.target.value.toLowerCase() })}
             />
           </div>
-          <div>
-            <Label htmlFor="primary">Color primario</Label>
-            <input
-              id="primary"
-              type="color"
-              className="block h-10 w-full rounded"
-              value={brand.primary_color}
-              onChange={(e) => patch({ primary_color: e.target.value })}
-            />
-          </div>
-          <div>
-            <Label htmlFor="secondary">Color secundario</Label>
-            <input
-              id="secondary"
-              type="color"
-              className="block h-10 w-full rounded"
-              value={brand.secondary_color}
-              onChange={(e) => patch({ secondary_color: e.target.value })}
-            />
-          </div>
+          <ColorField
+            label="Color primario"
+            value={brand.primary_color}
+            onChange={(primary_color) => patch({ primary_color })}
+          />
+          <ColorField
+            label="Color secundario"
+            value={brand.secondary_color}
+            onChange={(secondary_color) => patch({ secondary_color })}
+          />
           <div>
             <Label htmlFor="logo">Logo</Label>
             <input
@@ -141,8 +224,34 @@ const BrandPage = () => {
               type="file"
               accept="image/png,image/jpeg,image/webp"
               className="block w-full text-sm"
-              onChange={(e) => uploadLogo(e.target.files?.[0])}
+              onChange={(e) => upload("logo", e.target.files?.[0])}
             />
+          </div>
+          <div>
+            <Label htmlFor="banner">Banner</Label>
+            <input
+              id="banner"
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              className="block w-full text-sm"
+              onChange={(e) => upload("banner", e.target.files?.[0])}
+            />
+          </div>
+          <div>
+            <Label>Proporción de las fotos</Label>
+            <Select
+              value={brand.image_ratio}
+              onValueChange={(image_ratio) => patch({ image_ratio })}
+            >
+              <Select.Trigger aria-label="Proporción de las fotos">
+                <Select.Value />
+              </Select.Trigger>
+              <Select.Content>
+                <Select.Item value="1:1">Cuadrada 1:1</Select.Item>
+                <Select.Item value="4:5">Vertical 4:5</Select.Item>
+                <Select.Item value="4:3">Horizontal 4:3</Select.Item>
+              </Select.Content>
+            </Select>
           </div>
           <div>
             <Label htmlFor="whatsapp">WhatsApp que recibe los pedidos</Label>
@@ -200,29 +309,12 @@ const BrandPage = () => {
         </div>
       </Container>
 
-      <Container className="h-fit p-0">
-        <div
-          className="flex items-center gap-3 rounded-t-lg p-4"
-          style={{ background: brand.primary_color, color: "#fff" }}
-        >
-          {brand.logo ? (
-            <img src={brand.logo} alt="" className="size-10 rounded-lg bg-white object-contain" />
-          ) : (
-            <span
-              className="flex size-10 items-center justify-center rounded-lg font-bold"
-              style={{ background: brand.secondary_color }}
-            >
-              {brand.name.charAt(0)}
-            </span>
-          )}
-          <span className="font-semibold">{brand.name}</span>
-        </div>
-        <div className="p-4">
-          <Text size="small" className="text-ui-fg-subtle">
-            Vista previa del encabezado
-          </Text>
-        </div>
-      </Container>
+      <div className="lg:sticky lg:top-4 lg:self-start">
+        <Text size="small" weight="plus" className="mb-2 text-center">
+          Vista previa en vivo
+        </Text>
+        <PhonePreview brand={brand} />
+      </div>
     </div>
   )
 }

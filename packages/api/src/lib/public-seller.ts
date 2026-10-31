@@ -16,7 +16,16 @@ export async function getPublicSeller(container: MedusaContainer, slug: string) 
     data: [seller],
   } = await query.graph({
     entity: "seller",
-    fields: ["id", "name", "handle", "logo", "description", "currency_code", "status"],
+    fields: [
+      "id",
+      "name",
+      "handle",
+      "logo",
+      "banner",
+      "description",
+      "currency_code",
+      "status",
+    ],
     filters: { handle: slug },
   })
   if (!seller || seller.status !== "open") {
@@ -34,5 +43,12 @@ export async function getPublicSeller(container: MedusaContainer, slug: string) 
     secondary_color: profile?.secondary_color ?? "#F59E0B",
     whatsapp_phone: profile?.whatsapp_phone ?? null,
     payment_methods: payload?.items ?? [],
+    rubro: profile?.rubro ?? null,
+    city: profile?.city ?? null,
+    instagram: profile?.instagram ?? null,
+    business_hours: profile?.business_hours ?? null,
+    delivery_time: profile?.delivery_time ?? null,
+    image_ratio: profile?.image_ratio ?? "1:1",
+    banner_blur: profile?.banner_blur ?? null,
   }
 }

@@ -1,0 +1,12 @@
+{
+  "_nota": "POST /store/catalogs/sneakerhub-co/orders. offer_id cambia en cada base de datos: tómalo de GET /store/catalogs/sneakerhub-co.",
+  "idempotency_key": "ejemplo-0001",
+  "customer_name": "Cliente Prueba 1",
+  "customer_phone": "+573101112233",
+  "customer_address": "Calle de prueba 123, Bogotá",
+  "notes": "Entregar en portería",
+  "items": [
+    { "offer_id": "offer_XXXXXXXX", "quantity": 1, "size": "40" },
+    { "offer_id": "offer_YYYYYYYY", "quantity": 2, "size": "41" }
+  ]
+}

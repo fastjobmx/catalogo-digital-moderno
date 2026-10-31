@@ -1,6 +1,8 @@
 import type { MedusaContainer } from "@medusajs/framework/types"
 import { ContainerRegistrationKeys, ProductStatus } from "@medusajs/framework/utils"
 
+export type ProductOption = { name: string; values: string[] }
+
 export type CatalogItem = {
   offer_id: string
   product_id: string
@@ -10,11 +12,18 @@ export type CatalogItem = {
   image_url: string | null
   images: string[]
   category: string | null
+  subcategory: string | null
   brand: string | null
   sizes: string[]
+  options: ProductOption[]
+  sold_out_options: string[]
+  notice: string | null
+  blur: string[]
   price: number
   compare_at_price: number | null
   is_featured: boolean
+  is_new: boolean
+  is_best_seller: boolean
   stock: number
 }
 
@@ -83,6 +92,7 @@ export async function getSellerCatalog(
     const stock = (offer.inventory_item_link ?? [])
       .flatMap((link: any) => link?.inventory_item?.location_levels ?? [])
       .reduce((sum: number, level: any) => sum + Number(level?.stocked_quantity ?? 0), 0)
+    const sizes = (product.metadata?.sizes as string[]) ?? []
 
     return [
       {
@@ -94,11 +104,20 @@ export async function getSellerCatalog(
         image_url: product.thumbnail ?? null,
         images: (product.images ?? []).map((image: any) => image.url),
         category: (product.metadata?.category as string) ?? null,
+        subcategory: (product.metadata?.subcategory as string) ?? null,
         brand: (product.metadata?.brand as string) ?? null,
-        sizes: (product.metadata?.sizes as string[]) ?? [],
+        sizes,
+        options: (product.metadata?.options as ProductOption[]) ?? (
+          sizes.length ? [{ name: "Talla", values: sizes }] : []
+        ),
+        sold_out_options: (product.metadata?.sold_out_options as string[]) ?? [],
+        notice: (product.metadata?.notice as string) ?? null,
+        blur: (product.metadata?.blur as string[]) ?? [],
         price: Number(price.amount),
         compare_at_price: (product.metadata?.compare_at_price as number) ?? null,
         is_featured: Boolean(product.metadata?.is_featured),
+        is_new: Boolean(product.metadata?.is_new),
+        is_best_seller: Boolean(product.metadata?.is_best_seller),
         stock,
       },
     ]

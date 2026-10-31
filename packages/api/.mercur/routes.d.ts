@@ -647,6 +647,9 @@ export type Routes = {
         catalogs: {
             $slug: typeof import("../src/api/store/catalogs/[slug]/route") & {
                 orders: typeof import("../src/api/store/catalogs/[slug]/orders/route");
+                products: {
+                    $sku: typeof import("../src/api/store/catalogs/[slug]/products/[sku]/route");
+                };
             };
         };
         custom: typeof import("../src/api/store/custom/route");
@@ -940,6 +943,8 @@ export type Routes = {
         catalogImports: typeof import("../src/api/vendor/catalog-imports/route") & {
             $id: typeof import("../src/api/vendor/catalog-imports/[id]/route");
         };
+        catalogProducts: typeof import("../src/api/vendor/catalog-products/route");
+        dashboard: typeof import("../src/api/vendor/dashboard/route");
         orderRequests: typeof import("../src/api/vendor/order-requests/route") & {
             $id: typeof import("../src/api/vendor/order-requests/[id]/route") & {
                 messages: {

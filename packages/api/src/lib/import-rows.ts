@@ -16,6 +16,8 @@ export type ImportRow = {
   sizes: string[]
   compare_at_price: number | null
   is_featured: boolean | null
+  /** Solo lo llena el seed: variantes, avisos y blur. El CSV no puede escribirlo. */
+  extra?: Record<string, unknown>
 }
 
 export type RowError = { row: number; sku?: string; message: string }

@@ -1,6 +1,6 @@
-SKU,Nombre,Descripción,Precio,Stock,Imagen URL,Categoría,Marca,Tallas
-E2E-0001,Nike Pegasus 41 Azul,Prueba de importación masiva.,"$ 289.900",10,https://picsum.photos/seed/E2E-0001/600/600,Deportivos,Nike,39|40|41
-E2E-0002,Adidas Campus 00s Gris,Prueba de importación masiva.,"259.900",8,https://picsum.photos/seed/E2E-0002/600/600,Urbanos,Adidas,38|39|40
-E2E-0003,Puma Speedcat Rojo,Prueba de importación masiva.,239900,6,https://picsum.photos/seed/E2E-0003/600/600,Urbanos,Puma,40|41|42
-E2E-0004,New Balance 530 Blanco,Prueba de importación masiva.,"$ 299.900",12,https://picsum.photos/seed/E2E-0004/600/600,Urbanos,New Balance,39|40|41|42
-E2E-0005,Vans Knu Skool Negro,Prueba de importación masiva.,"219.900",5,https://picsum.photos/seed/E2E-0005/600/600,Urbanos,Vans,38|39|40
+sku,name,description,price,stock,category,brand,image_url
+E2E-0001,Tenis running azul prueba,Producto de prueba de importación masiva.,"$ 289.900",10,Deportivos,Nike,http://localhost:3100/seed-images/sneakerhub-co/SNK-0005-1-1200.webp
+E2E-0002,Tenis urbano gris prueba,Producto de prueba de importación masiva.,"259.900",8,Urbanos,Adidas,http://localhost:3100/seed-images/sneakerhub-co/SNK-0006-1-1200.webp
+E2E-0003,Tenis retro rojo prueba,Producto de prueba de importación masiva.,239900,6,Urbanos,Puma,http://localhost:3100/seed-images/sneakerhub-co/SNK-0014-1-1200.webp
+E2E-0004,Tenis clásico blanco prueba,Producto de prueba de importación masiva.,"$ 299.900",12,Urbanos,New Balance,http://localhost:3100/seed-images/sneakerhub-co/SNK-0001-1-1200.webp
+E2E-0005,Tenis skate negro prueba,Producto de prueba de importación masiva.,"219.900",5,Urbanos,Vans,http://localhost:3100/seed-images/sneakerhub-co/SNK-0013-1-1200.webp

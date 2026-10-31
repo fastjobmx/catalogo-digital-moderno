@@ -7,7 +7,7 @@ import {
 import { CATALOGO_MODULE } from "../modules/catalogo"
 import type { OrderStatus } from "../modules/catalogo/models/order-request"
 import type CatalogoModuleService from "../modules/catalogo/service"
-import { getSellerCatalog, invalidateCatalog } from "./catalog-read"
+import { CatalogItem, getSellerCatalog, invalidateCatalog } from "./catalog-read"
 import { normalizePhone } from "./phone"
 import { enqueueWhatsappMessage } from "./queue"
 import { getOrCreateProfile } from "./seller-setup"
@@ -35,6 +35,30 @@ export type OrderSeller = {
 }
 
 export class RateLimitError extends Error {}
+
+/** `size` lleva una opción por eje, en orden: "M / Negro". Un eje agotado se rechaza. */
+export function assertValidVariant(item: CatalogItem, variant?: string | null) {
+  if (!item.options.length) {
+    return
+  }
+  const picked = (variant ?? "").split(" / ")
+  const valid =
+    picked.length === item.options.length &&
+    item.options.every((option, index) => option.values.includes(picked[index]))
+  if (!valid) {
+    throw new MedusaError(
+      MedusaError.Types.INVALID_DATA,
+      `Elige una opción válida para ${item.title}`
+    )
+  }
+  const soldOut = picked.find((value) => item.sold_out_options.includes(value))
+  if (soldOut) {
+    throw new MedusaError(
+      MedusaError.Types.INVALID_DATA,
+      `${item.title} no está disponible en ${soldOut}`
+    )
+  }
+}
 
 export async function createOrderRequest(
   container: MedusaContainer,
@@ -93,12 +117,7 @@ export async function createOrderRequest(
         `Solo hay ${item.stock} unidades de ${item.title}`
       )
     }
-    if (item.sizes.length && !item.sizes.includes(line.size ?? "")) {
-      throw new MedusaError(
-        MedusaError.Types.INVALID_DATA,
-        `Elige una talla válida para ${item.title}`
-      )
-    }
+    assertValidVariant(item, line.size)
     return {
       offer_id: item.offer_id,
       product_id: item.product_id,

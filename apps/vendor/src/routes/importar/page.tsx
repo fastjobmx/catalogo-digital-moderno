@@ -95,6 +95,7 @@ const ImportPage = () => {
   const [jobId, setJobId] = useState<string | null>(null)
   const [job, setJob] = useState<Job | null>(null)
   const [busy, setBusy] = useState(false)
+  const [dragging, setDragging] = useState(false)
   const input = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -208,15 +209,38 @@ const ImportPage = () => {
 
       {!sheet && (
         <div className="px-6 py-6">
-          <input
-            ref={input}
-            type="file"
-            aria-label="Archivo CSV o Excel"
-            accept=".csv,.xls,.xlsx"
-            disabled={busy}
-            onChange={(event) => onFile(event.target.files?.[0])}
-          />
-          {busy && <Text size="small">Leyendo archivo…</Text>}
+          <label
+            onDragOver={(event) => {
+              event.preventDefault()
+              setDragging(true)
+            }}
+            onDragLeave={() => setDragging(false)}
+            onDrop={(event) => {
+              event.preventDefault()
+              setDragging(false)
+              onFile(event.dataTransfer.files[0])
+            }}
+            className={`flex cursor-pointer flex-col items-center gap-2 rounded-xl border-2 border-dashed px-6 py-12 text-center transition-colors ${
+              dragging ? "border-ui-fg-interactive bg-ui-bg-subtle" : "border-ui-border-strong"
+            }`}
+          >
+            <ArrowUpTray />
+            <Text weight="plus">
+              {busy ? "Leyendo archivo…" : "Arrastra tu archivo aquí o haz clic para elegirlo"}
+            </Text>
+            <Text size="small" className="text-ui-fg-subtle">
+              CSV, XLS o XLSX de hasta 10 MB
+            </Text>
+            <input
+              ref={input}
+              type="file"
+              aria-label="Archivo CSV o Excel"
+              accept=".csv,.xls,.xlsx"
+              disabled={busy}
+              className="sr-only"
+              onChange={(event) => onFile(event.target.files?.[0])}
+            />
+          </label>
         </div>
       )}
 

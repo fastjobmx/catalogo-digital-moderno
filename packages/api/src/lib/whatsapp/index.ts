@@ -2,11 +2,11 @@ import type { MedusaContainer } from "@medusajs/framework/types"
 import { CloudApiProvider } from "./cloud"
 import { MockProvider } from "./mock"
 import { TwilioProvider } from "./twilio"
-import { WhatsAppProvider } from "./types"
+import { MessagingProvider } from "./types"
 
 export * from "./types"
 
-export function getWhatsAppProvider(container: MedusaContainer): WhatsAppProvider {
+export function getWhatsAppProvider(container: MedusaContainer): MessagingProvider {
   switch (process.env.WHATSAPP_PROVIDER || "mock") {
     case "cloud":
       // En desarrollo, sin credenciales se usa el sandbox. En producción se falla a la vista:

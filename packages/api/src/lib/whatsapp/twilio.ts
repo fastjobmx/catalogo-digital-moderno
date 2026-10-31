@@ -1,7 +1,7 @@
 import {
   OutgoingMessage,
   SendResult,
-  WhatsAppProvider,
+  MessagingProvider,
   WhatsAppSendError,
 } from "./types"
 import { TEMPLATE_VENDOR } from "./messages"
@@ -10,7 +10,7 @@ import { TEMPLATE_VENDOR } from "./messages"
  * Twilio API for WhatsApp. En producción, fuera de la ventana de 24 h, define
  * TWILIO_CONTENT_SID_VENDOR y TWILIO_CONTENT_SID_CUSTOMER; sin ellos envía texto libre (sandbox).
  */
-export class TwilioProvider implements WhatsAppProvider {
+export class TwilioProvider implements MessagingProvider {
   readonly name = "twilio"
 
   async send(message: OutgoingMessage): Promise<SendResult> {

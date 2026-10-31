@@ -1,3 +1,4 @@
+import { createHash } from "crypto"
 import { mkdirSync, writeFileSync } from "fs"
 import path from "path"
 import type { ExecArgs } from "@medusajs/framework/types"
@@ -12,6 +13,7 @@ import {
 import {
   approveSellerWorkflow,
   createSellerAccountWorkflow,
+  updateSellersWorkflow,
 } from "@mercurjs/core/workflows"
 import { findExistingOffers, processCatalogImport } from "../lib/catalog-import"
 import { validateRows } from "../lib/import-rows"
@@ -20,11 +22,14 @@ import { getOrCreateProfile } from "../lib/seller-setup"
 import { CATALOGO_MODULE } from "../modules/catalogo"
 import type CatalogoModuleService from "../modules/catalogo/service"
 import {
+  bannerFor,
   buildProductRows,
   CUSTOMERS,
+  loadManifest,
   SELLER_PASSWORD,
   VendorSeed,
   VENDORS,
+  writeLogo,
 } from "./seed-data"
 
 type Container = ExecArgs["container"]
@@ -97,22 +102,33 @@ async function ensureMarketplaceBase(container: Container) {
   logger.info("Clave publicable escrita en apps/storefront/.env.local")
 }
 
-async function ensureSeller(container: Container, vendor: VendorSeed) {
+async function ensureSeller(
+  container: Container,
+  vendor: VendorSeed,
+  banner: string | null
+) {
   const query = container.resolve(ContainerRegistrationKeys.QUERY)
   const auth = container.resolve(Modules.AUTH)
+  const logo = writeLogo(vendor)
 
   const {
     data: [existing],
   } = await query.graph({
     entity: "seller",
     fields: ["id"],
-    filters: { handle: vendor.handle },
+    filters: { handle: vendor.slug },
   })
   if (existing) {
+    await updateSellersWorkflow(container).run({
+      input: {
+        selector: { id: existing.id },
+        update: { description: vendor.description, logo, banner },
+      },
+    })
     return existing.id as string
   }
 
-  const memberEmail = `admin+${vendor.handle}@test.com`
+  const memberEmail = `admin+${vendor.slug}@test.com`
   const { success, authIdentity } = await auth.register("emailpass", {
     body: { email: memberEmail, password: SELLER_PASSWORD },
   })
@@ -130,23 +146,25 @@ async function ensureSeller(container: Container, vendor: VendorSeed) {
     input: {
       auth_identity_id: authIdentityId,
       member_email: memberEmail,
-      first_name: vendor.first_name,
-      last_name: vendor.last_name,
+      first_name: vendor.owner[0],
+      last_name: vendor.owner[1],
       seller: {
         name: vendor.name,
-        handle: vendor.handle,
-        email: `contacto@${vendor.handle}.test`,
-        phone: vendor.whatsapp_phone,
+        handle: vendor.slug,
+        email: `contacto@${vendor.slug}.test`,
+        phone: vendor.whatsapp,
         currency_code: "cop",
         description: vendor.description,
-        logo: `https://ui-avatars.com/api/?name=${encodeURIComponent(
-          vendor.name
-        )}&background=${vendor.logoBackground}&color=fff&size=256`,
+        logo,
+        banner,
       },
       address: {
-        ...vendor.address,
+        address_1: vendor.address,
+        city: vendor.city,
+        province: vendor.province,
+        postal_code: vendor.postal,
         country_code: "co",
-        phone: vendor.whatsapp_phone,
+        phone: vendor.whatsapp,
       },
     } as any,
   })
@@ -154,33 +172,56 @@ async function ensureSeller(container: Container, vendor: VendorSeed) {
   return seller.id
 }
 
-async function seedVendor(container: Container, vendor: VendorSeed) {
+type Manifest = ReturnType<typeof loadManifest>
+
+async function seedVendor(container: Container, vendor: VendorSeed, manifest: Manifest) {
   const logger = container.resolve("logger")
   const catalogo = container.resolve<CatalogoModuleService>(CATALOGO_MODULE)
 
-  const sellerId = await ensureSeller(container, vendor)
+  const banner = bannerFor(vendor, manifest)
+  const sellerId = await ensureSeller(container, vendor, banner.url)
   const profile = await getOrCreateProfile(container, sellerId)
   await catalogo.updateVendorProfiles({
     id: profile.id,
-    primary_color: vendor.primary_color,
-    secondary_color: vendor.secondary_color,
-    whatsapp_phone: normalizePhone(vendor.whatsapp_phone),
-    payment_methods: { items: vendor.payment_methods },
+    primary_color: vendor.primary,
+    secondary_color: vendor.secondary,
+    whatsapp_phone: normalizePhone(vendor.whatsapp),
+    payment_methods: { items: vendor.payments },
+    rubro: vendor.rubro,
+    city: vendor.city,
+    instagram: vendor.instagram,
+    business_hours: vendor.hours,
+    delivery_time: vendor.delivery,
+    image_ratio: vendor.ratio,
+    banner_blur: banner.blur,
   })
 
-  // El seed pasa por el mismo camino que un CSV real, y solo crea los SKU que faltan.
-  const { valid, errors } = validateRows(buildProductRows(vendor))
+  // El seed pasa por el mismo camino que un CSV real.
+  const rows = buildProductRows(vendor, manifest)
+  const { valid, errors } = validateRows(rows.map((row) => row.raw))
   if (errors.length) {
     throw new Error(`Seed inválido: ${JSON.stringify(errors)}`)
   }
+  const prepared = valid.map((row, index) => {
+    const extra = rows[index].extra
+    return {
+      ...row,
+      extra: { ...extra, seed_hash: createHash("md5").update(JSON.stringify([row, extra])).digest("hex") },
+    }
+  })
+
+  // Upsert: solo se escribe lo que falta o cambió, por ejemplo tras correr seed:images.
   const existing = await findExistingOffers(
     container,
     sellerId,
-    valid.map((row) => row.sku)
+    prepared.map((row) => row.sku)
   )
-  const missing = valid.filter((row) => !existing.has(row.sku))
-  if (!missing.length) {
-    logger.info(`${vendor.name}: ${valid.length} productos ya existen.`)
+  const pending = prepared.filter(
+    (row) =>
+      existing.get(row.sku)?.product?.metadata?.seed_hash !== row.extra.seed_hash
+  )
+  if (!pending.length) {
+    logger.info(`${vendor.name}: ${prepared.length} productos al día.`)
     return
   }
 
@@ -188,8 +229,8 @@ async function seedVendor(container: Container, vendor: VendorSeed) {
     seller_id: sellerId,
     file_name: "seed.csv",
     status: "queued",
-    total_rows: missing.length,
-    rows: { items: missing },
+    total_rows: pending.length,
+    rows: { items: pending },
   } as any)
   await processCatalogImport(container, job.id)
 
@@ -197,7 +238,9 @@ async function seedVendor(container: Container, vendor: VendorSeed) {
   if (result.failed_count) {
     throw new Error(`${vendor.name}: ${JSON.stringify(result.errors)}`)
   }
-  logger.info(`${vendor.name}: ${result.created_count} productos creados.`)
+  logger.info(
+    `${vendor.name}: ${result.created_count} creados, ${result.updated_count} actualizados.`
+  )
 }
 
 async function seedCustomers(container: Container) {
@@ -223,9 +266,16 @@ async function seedCustomers(container: Container) {
 export default async function seed({ container }: ExecArgs) {
   const logger = container.resolve("logger")
 
+  const manifest = loadManifest()
+  if (!manifest) {
+    logger.warn(
+      "No hay seed-images/manifest.json: se usan placeholders locales. Ejecuta npm run seed:images para fotos reales."
+    )
+  }
+
   await ensureMarketplaceBase(container)
   for (const vendor of VENDORS) {
-    await seedVendor(container, vendor)
+    await seedVendor(container, vendor, manifest)
   }
   await seedCustomers(container)
 

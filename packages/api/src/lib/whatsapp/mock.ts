@@ -5,7 +5,7 @@ import type CatalogoModuleService from "../../modules/catalogo/service"
 import {
   OutgoingMessage,
   SendResult,
-  WhatsAppProvider,
+  MessagingProvider,
   WhatsAppSendError,
 } from "./types"
 
@@ -13,7 +13,7 @@ import {
 export const MOCK_FAILING_PHONE = "573000000000"
 
 /** Sandbox: no sale nada a internet, cada mensaje queda en `whatsapp_outbox`. */
-export class MockProvider implements WhatsAppProvider {
+export class MockProvider implements MessagingProvider {
   readonly name = "mock"
 
   constructor(private readonly container: MedusaContainer) {}

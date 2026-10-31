@@ -1,12 +1,12 @@
 import {
   OutgoingMessage,
   SendResult,
-  WhatsAppProvider,
+  MessagingProvider,
   WhatsAppSendError,
 } from "./types"
 
 /** WhatsApp Cloud API de Meta. Siempre por plantilla: el destinatario no ha abierto ventana de 24 h. */
-export class CloudApiProvider implements WhatsAppProvider {
+export class CloudApiProvider implements MessagingProvider {
   readonly name = "cloud"
 
   async send(message: OutgoingMessage): Promise<SendResult> {
