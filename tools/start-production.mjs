@@ -10,6 +10,9 @@ const medusa = path.resolve(
   process.platform === "win32" ? "medusa.exe" : "medusa"
 )
 
+// El plan gratis da 512 MB: mejor recolectar basura antes que morir por memoria.
+process.env.NODE_OPTIONS = "--max-old-space-size=420"
+
 // Render publica su URL; los paneles viven en el mismo dominio que la API.
 const publicUrl = process.env.RENDER_EXTERNAL_URL
 if (publicUrl) {

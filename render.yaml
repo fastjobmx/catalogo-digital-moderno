@@ -5,14 +5,15 @@ services:
     runtime: node
     plan: free
     region: oregon
-    buildCommand: VITE_MERCUR_BACKEND_URL=$RENDER_EXTERNAL_URL npx bun install && VITE_MERCUR_BACKEND_URL=$RENDER_EXTERNAL_URL npx turbo run build --filter=!@acme/storefront
+    buildCommand: VITE_MERCUR_BACKEND_URL=$RENDER_EXTERNAL_URL npx bun install && VITE_MERCUR_BACKEND_URL=$RENDER_EXTERNAL_URL npx turbo run build --filter=!@acme/storefront --concurrency=1
     startCommand: node tools/start-production.mjs
     healthCheckPath: /health
     envVars:
       - key: NODE_VERSION
         value: "22"
+      # La compilación necesita más memoria; el servidor se limita en start-production.mjs.
       - key: NODE_OPTIONS
-        value: --max-old-space-size=420
+        value: --max-old-space-size=2048
       - key: MERCUR_DISABLE_TELEMETRY
         value: "true"
       - key: DATABASE_URL
