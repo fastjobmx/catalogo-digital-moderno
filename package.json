@@ -12,6 +12,7 @@
     "seed:credits": "node tools/seed-credits.mjs",
     "test": "cd packages/api && npm run test:unit",
     "verify:e2e": "node tools/verify-e2e.mjs",
+    "online": "node tools/online.mjs",
     "verify:setup": "playwright install chromium",
     "lint": "turbo run lint",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",

@@ -66,6 +66,13 @@ export type Catalog = {
   limit: number
 }
 
+const ASSET_ORIGIN = process.env.SEED_ASSET_BASE_URL || "http://localhost:3100"
+
+// Las fotos del seed se guardan con URL absoluta; relativas funcionan en cualquier dominio.
+async function readJson<T>(response: Response): Promise<T> {
+  return JSON.parse((await response.text()).replaceAll(ASSET_ORIGIN, ""))
+}
+
 export function backendFetch(path: string, init?: RequestInit) {
   return fetch(`${BACKEND_URL}${path}`, {
     ...init,
@@ -110,7 +117,7 @@ export async function getCatalog(
   if (!response.ok) {
     throw new Error(`Catálogo: HTTP ${response.status}`)
   }
-  return response.json()
+  return readJson<Catalog>(response)
 }
 
 export async function getProduct(slug: string, sku: string) {
@@ -124,5 +131,5 @@ export async function getProduct(slug: string, sku: string) {
   if (!response.ok) {
     throw new Error(`Producto: HTTP ${response.status}`)
   }
-  return response.json() as Promise<{ product: Product; related: Product[] }>
+  return readJson<{ product: Product; related: Product[] }>(response)
 }

@@ -50,6 +50,10 @@ Deja las capturas en `screenshots/index.html`. `npm install` no funciona con est
 | Sandbox de WhatsApp | http://localhost:3100/dev/whatsapp-outbox |
 | API | http://localhost:9000 |
 
+## Enlace público temporal
+
+Con el sistema arriba, `npm run online` compila el catálogo en modo producción en el puerto 3200. Luego `cloudflared tunnel --url http://localhost:3200` da una dirección pública mientras tu computador siga encendido. No publica paneles ni sandbox.
+
 ## Fotos del seed
 
 `npm run seed:images` busca en Pexels, Unsplash, Pixabay y Wikimedia Commons, en ese orden. Genera WebP de 1200, 600 y 300 px más un blur, y guarda `apps/storefront/public/seed-images/manifest.json`. Está cacheado: `--force` regenera y `--vendor=slug` limita a un comercio.
